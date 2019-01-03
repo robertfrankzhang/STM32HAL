@@ -40,13 +40,13 @@ int main(void){
 			isDispensing = 1;
 		}
 
-//		if (HAL_GPIO_ReadPin(tiltSwitch) && isDispensing == 1){
-//			HAL_GPIO_WritePin(motor,GPIO_PIN_RESET);
-//		}else{
-//			if (isDispensing == 1){
-//				HAL_GPIO_WritePin(motor,GPIO_PIN_SET);
-//			}
-//		}
+		if (HAL_GPIO_ReadPin(tiltSwitch) && isDispensing == 1){
+			HAL_GPIO_WritePin(motor,GPIO_PIN_RESET);
+		}else{
+			if (isDispensing == 1){
+				HAL_GPIO_WritePin(motor,GPIO_PIN_SET);
+			}
+		}
 
 		HAL_ADC_Start(&hadc1);
 		if (HAL_ADC_PollForConversion(&hadc1, 1000000) == HAL_OK){
