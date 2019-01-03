@@ -49,7 +49,6 @@ src/main.o: ../src/main.c \
  /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_ll_usb.h \
  /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_pcd_ex.h \
  /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_hcd.h \
- /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/Legacy/stm32_hal_legacy.h \
  ../src/pwm.h ../src/definitions.h
 
 /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/CMSIS/device/stm32f1xx.h:
@@ -151,8 +150,6 @@ src/main.o: ../src/main.c \
 /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_pcd_ex.h:
 
 /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_hcd.h:
-
-/Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/Legacy/stm32_hal_legacy.h:
 
 ../src/pwm.h:
 
