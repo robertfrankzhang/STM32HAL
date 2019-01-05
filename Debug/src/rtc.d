@@ -1,4 +1,8 @@
-src/main.o: ../src/main.c \
+src/rtc.o: ../src/rtc.c \
+ /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal.h \
+ /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_conf.h \
+ /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_rcc.h \
+ /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_def.h \
  /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/CMSIS/device/stm32f1xx.h \
  /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/CMSIS/device/stm32f103xb.h \
  /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/CMSIS/core/core_cm3.h \
@@ -6,10 +10,6 @@ src/main.o: ../src/main.c \
  /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/CMSIS/core/cmsis_gcc.h \
  /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/CMSIS/core/core_cmFunc.h \
  /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/CMSIS/device/system_stm32f1xx.h \
- /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal.h \
- /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_conf.h \
- /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_rcc.h \
- /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_def.h \
  /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_rcc_ex.h \
  /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_gpio.h \
  /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_gpio_ex.h \
@@ -48,8 +48,15 @@ src/main.o: ../src/main.c \
  /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_pcd.h \
  /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_ll_usb.h \
  /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_pcd_ex.h \
- /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_hcd.h \
- ../src/pwm.h ../src/definitions.h ../src/rtc.h
+ /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_hcd.h
+
+/Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal.h:
+
+/Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_conf.h:
+
+/Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_rcc.h:
+
+/Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_def.h:
 
 /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/CMSIS/device/stm32f1xx.h:
 
@@ -64,14 +71,6 @@ src/main.o: ../src/main.c \
 /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/CMSIS/core/core_cmFunc.h:
 
 /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/CMSIS/device/system_stm32f1xx.h:
-
-/Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal.h:
-
-/Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_conf.h:
-
-/Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_rcc.h:
-
-/Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_def.h:
 
 /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_rcc_ex.h:
 
@@ -150,9 +149,3 @@ src/main.o: ../src/main.c \
 /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_pcd_ex.h:
 
 /Users/robert/Google_Drive/2\ Projects/PillBot/STM/PillBotDevice/HAL_Driver/Inc/stm32f1xx_hal_hcd.h:
-
-../src/pwm.h:
-
-../src/definitions.h:
-
-../src/rtc.h:

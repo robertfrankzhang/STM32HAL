@@ -6,6 +6,7 @@
 C_SRCS += \
 ../src/main.c \
 ../src/pwm.c \
+../src/rtc.c \
 ../src/stm32f1xx_it.c \
 ../src/syscalls.c \
 ../src/system_stm32f1xx.c 
@@ -13,6 +14,7 @@ C_SRCS += \
 OBJS += \
 ./src/main.o \
 ./src/pwm.o \
+./src/rtc.o \
 ./src/stm32f1xx_it.o \
 ./src/syscalls.o \
 ./src/system_stm32f1xx.o 
@@ -20,6 +22,7 @@ OBJS += \
 C_DEPS += \
 ./src/main.d \
 ./src/pwm.d \
+./src/rtc.d \
 ./src/stm32f1xx_it.d \
 ./src/syscalls.d \
 ./src/system_stm32f1xx.d 
