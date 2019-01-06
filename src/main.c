@@ -13,21 +13,25 @@
 #include "pwm.h"
 #include "definitions.h"
 #include "rtc.h"
+#define USE_INTERRUPT
 			
 void initPin(GPIO_TypeDef* port, uint32_t mode, uint32_t speed, uint32_t pin, uint32_t pull);
 void initAllPins(void);
 void SystemClock_Config(void);
 void setNextAlarm(void);
+static void MX_GPIO_Init(void);
 
 TIM_HandleTypeDef _htim;
 TIM_HandleTypeDef _htim2;
 ADC_HandleTypeDef hadc1;
 static void MX_ADC1_Init(void);
 
-uint8_t isDispensing = 0; //state of whether motor is currently running
-uint8_t canDispense = 1; //state of whether time out period is over
-uint8_t buttonDown = 0; //state of whether button is pressed down
+enum DispenseState{
+	IDLE,WAITING_FOR_DISPENSE,IS_DISPENSING
+};
 
+enum DispenseState state = WAITING_FOR_DISPENSE;
+uint8_t buttonDown = 0; //state of whether button is pressed down
 
 int main(void){
 	HAL_Init();
@@ -37,47 +41,49 @@ int main(void){
 	SystemClock_Config();
 	/* Initialize all configured peripherals */
 	RTC_Init();
+	MX_GPIO_Init();
 	initAllPins();
 
 
 	uint32_t value=0;
 
 	while(1){
-		if (!HAL_GPIO_ReadPin(topButton) && !HAL_GPIO_ReadPin(bottomButton) && isDispensing == 0 && canDispense == 1 && buttonDown == 0){
-			//make timestamp
+		if (!HAL_GPIO_ReadPin(button)){
+			if (state == WAITING_FOR_DISPENSE && buttonDown == 0){
+				//make timestamp
 
-			HAL_GPIO_WritePin(motor,GPIO_PIN_SET);
-			HAL_GPIO_WritePin(proxLED,GPIO_PIN_SET);
-			isDispensing = 1;
-			canDispense = 0;
-			buttonDown = 1;
-			HAL_Delay(50);
-		}
-
-		if ((HAL_GPIO_ReadPin(topButton) || HAL_GPIO_ReadPin(bottomButton)) && buttonDown == 1){
-			buttonDown = 0;
-		}
-
-		if (HAL_GPIO_ReadPin(tiltSwitch) && isDispensing == 1){
-			HAL_GPIO_WritePin(motor,GPIO_PIN_RESET);
-		}else{
-			if (isDispensing == 1){
 				HAL_GPIO_WritePin(motor,GPIO_PIN_SET);
+				HAL_GPIO_WritePin(proxLED,GPIO_PIN_SET);
+				state = IS_DISPENSING;
+				buttonDown = 1;
 				HAL_Delay(50);
+			}
+		}else{
+			if (buttonDown == 1){
+				buttonDown = 0;
 			}
 		}
 
-		HAL_ADC_Start(&hadc1);
-		if (HAL_ADC_PollForConversion(&hadc1, 1000000) == HAL_OK){
-			value = HAL_ADC_GetValue(&hadc1);
-			if (value > 1000 && isDispensing == 1){
-				HAL_GPIO_WritePin(proxLED,GPIO_PIN_RESET);
+		if (state == IS_DISPENSING){
+			if (HAL_GPIO_ReadPin(tiltSwitch)){
 				HAL_GPIO_WritePin(motor,GPIO_PIN_RESET);
+			}else{
+				HAL_GPIO_WritePin(motor,GPIO_PIN_SET);
+				HAL_Delay(50);
+			}
 
-				isDispensing = 0;
-				__HAL_TIM_SET_COMPARE(&_htim, TIM_CHANNEL_1, 0);
-				//Start a lock out clock for can Dispense;
-				setNextAlarm();
+			HAL_ADC_Start(&hadc1);
+			if (HAL_ADC_PollForConversion(&hadc1, 1000000) == HAL_OK){
+				value = HAL_ADC_GetValue(&hadc1);
+				if (value > 1000){
+					HAL_GPIO_WritePin(proxLED,GPIO_PIN_RESET);
+					HAL_GPIO_WritePin(motor,GPIO_PIN_RESET);
+
+					state = IDLE;
+					__HAL_TIM_SET_COMPARE(&_htim, TIM_CHANNEL_1, 0);
+					//Start a lock out clock for can Dispense;
+					setNextAlarm();
+				}
 			}
 		}
 
@@ -97,12 +103,12 @@ void initAllPins(){
 	//Motor Output
 	initPin(GPIOA,GPIO_MODE_OUTPUT_PP,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_10,GPIO_NOPULL);
 
-	//Top Button
+	//Button
+#ifdef USE_INTERRUPT
+	initPin(GPIOA,GPIO_MODE_IT_FALLING,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_9,GPIO_PULLUP);
+#else
 	initPin(GPIOA,GPIO_MODE_INPUT,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_9,GPIO_PULLUP);
-
-	//Bottom Button
-	initPin(GPIOA,GPIO_MODE_INPUT,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_12,GPIO_PULLUP);
-
+#endif
 	//Tilt Switch
 	initPin(GPIOA,GPIO_MODE_INPUT,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_11,GPIO_PULLUP);
 
@@ -115,6 +121,17 @@ void initAllPins(){
 	//Photoresistor
 //	initPin(GPIOA,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_4,GPIO_NOPULL);
 }
+
+void deepSleep(){
+	//Sleep
+	HAL_SuspendTick();
+	HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON,PWR_STOPENTRY_WFI);
+
+	//Wake Up
+	SystemClock_Config();
+	HAL_ResumeTick();
+}
+
 
 static void MX_ADC1_Init(void)
 {
@@ -181,10 +198,31 @@ void setNextAlarm(void){
 }
 
 void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *rtc) {
-  canDispense = 1;
+  state = WAITING_FOR_DISPENSE;
   __HAL_TIM_SET_COMPARE(&_htim, TIM_CHANNEL_1, 2);
 }
 
+static void MX_GPIO_Init(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+  /* GPIO Ports Clock Enable */
+  //__HAL_RCC_GPIOC_CLK_ENABLE();
+  //__HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+
+  /*Configure GPIO pin : PA9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+}
+
+void EXTI9_5_IRQHandler(void){
+	HAL_NVIC_ClearPendingIRQ(EXTI9_5_IRQn);
+	__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_9);
+}
 
 /**
   * @brief System Clock Configuration
