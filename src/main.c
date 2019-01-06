@@ -13,12 +13,11 @@
 #include "pwm.h"
 #include "definitions.h"
 #include "rtc.h"
-#define USE_INTERRUPT
 			
 void initPin(GPIO_TypeDef* port, uint32_t mode, uint32_t speed, uint32_t pin, uint32_t pull);
 void initAllPins(void);
 void SystemClock_Config();
-void setNextAlarm(void);
+void setNextAlarm(int delay);
 
 TIM_HandleTypeDef _htim;
 TIM_HandleTypeDef _htim2;
@@ -30,7 +29,10 @@ enum DispenseState{
 };
 
 enum DispenseState state = WAITING_FOR_DISPENSE;
-uint8_t buttonDown = 0; //state of whether button is pressed down
+
+uint8_t  EventAlarm = 0;
+uint8_t  EventPush = 0;
+
 
 int main(void){
 	HAL_Init();
@@ -42,54 +44,51 @@ int main(void){
 	RTC_Init();
 	initAllPins();
 
-	uint32_t value=0;
+	//HAL_NVIC_ClearPendingIRQ(EXTI9_5_IRQn);
+	//__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_9);
+	HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
+	setNextAlarm(2);
 
 	while(1){
-
-		if (!HAL_GPIO_ReadPin(button)){
-			if (state == WAITING_FOR_DISPENSE && buttonDown == 0){
-				//make timestamp
-
-				HAL_GPIO_WritePin(motor,GPIO_PIN_SET);
-				HAL_GPIO_WritePin(proxLED,GPIO_PIN_SET);
-				state = IS_DISPENSING;
-				buttonDown = 1;
-				HAL_Delay(50);
+		deepSleep();
+		switch(state){
+		case IDLE:
+			if (EventAlarm){
+				EventAlarm = 0;
+				state = WAITING_FOR_DISPENSE;
+				//__HAL_TIM_SET_COMPARE(&_htim, TIM_CHANNEL_1, 2);
+				setNextAlarm(2);
 			}
-		}else{
-			if (buttonDown == 1){
-				buttonDown = 0;
+			if (EventPush){
+				EventPush = 0;
 			}
-		}
+			break;
+		case WAITING_FOR_DISPENSE:
+			if (EventAlarm){
+				EventAlarm = 0;
+				state = WAITING_FOR_DISPENSE;
+				//__HAL_TIM_SET_COMPARE(&_htim, TIM_CHANNEL_1, 2);
+				initPin(GPIOA,GPIO_MODE_OUTPUT_PP,GPIO_SPEED_FREQ_HIGH,GPIO_PIN_6,GPIO_NOPULL);
+				HAL_GPIO_WritePin(pulseLED,GPIO_PIN_SET);
+				HAL_Delay(10);
+				HAL_GPIO_WritePin(pulseLED,GPIO_PIN_RESET);
+				setNextAlarm(2);
 
-		if (state == IS_DISPENSING){
-			if (HAL_GPIO_ReadPin(tiltSwitch)){
-				HAL_GPIO_WritePin(motor,GPIO_PIN_RESET);
-			}else{
-				HAL_GPIO_WritePin(motor,GPIO_PIN_SET);
-				HAL_Delay(50);
 			}
-
-			HAL_ADC_Start(&hadc1);
-			if (HAL_ADC_PollForConversion(&hadc1, 1000000) == HAL_OK){
-				value = HAL_ADC_GetValue(&hadc1);
-				if (value > 1000){
-					HAL_GPIO_WritePin(proxLED,GPIO_PIN_RESET);
-					HAL_GPIO_WritePin(motor,GPIO_PIN_RESET);
-
-					state = IDLE;
+			if (EventPush){
+				EventPush = 0;
+				if( HAL_GPIO_ReadPin(button)==0){
+					state = IS_DISPENSING;
+					pwm_Init(GPIO_PIN_6,TIM3,GPIOA,40000,400,2,TIM_CHANNEL_1,&_htim);
+					//__HAL_TIM_SET_COMPARE(&_htim, TIM_CHANNEL_1, 2);
+					dispensingProc();
 					__HAL_TIM_SET_COMPARE(&_htim, TIM_CHANNEL_1, 0);
-					//Start a lock out clock for can Dispense;
-					setNextAlarm();
+					setNextAlarm(120);
 				}
 			}
+			break;
 		}
-#ifdef USE_INTERRUPT
-		if(state == IDLE){
-			deepSleep();
-		}
-#endif
-
 	}
 }
 
@@ -114,16 +113,17 @@ void initAllPins(){
 	initPin(GPIOA,GPIO_MODE_OUTPUT_PP,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_10,GPIO_NOPULL);
 
 	//Button
-#ifdef USE_INTERRUPT
-	initPin(GPIOA,GPIO_MODE_IT_RISING_FALLING,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_9,GPIO_PULLUP);
-#else
-	initPin(GPIOA,GPIO_MODE_INPUT,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_9,GPIO_PULLUP);
-#endif
+	initPin(GPIOA,GPIO_MODE_IT_FALLING,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_9,GPIO_PULLUP);
+
 	//Tilt Switch
 	initPin(GPIOA,GPIO_MODE_INPUT,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_8,GPIO_PULLUP);
 
 	//Pulsing Visible LED
-	pwm_Init(GPIO_PIN_6,TIM3,GPIOA,40000,400,2,TIM_CHANNEL_1,&_htim);
+	if (state == IS_DISPENSING){
+		pwm_Init(GPIO_PIN_6,TIM3,GPIOA,40000,400,2,TIM_CHANNEL_1,&_htim);
+	}else{
+		initPin(GPIOA,GPIO_MODE_OUTPUT_PP,GPIO_SPEED_FREQ_HIGH,GPIO_PIN_6,GPIO_NOPULL);
+	}
 
 	//Proximity LED
 	initPin(GPIOA,GPIO_MODE_OUTPUT_PP,GPIO_SPEED_FREQ_HIGH,GPIO_PIN_5,GPIO_NOPULL);
@@ -136,17 +136,19 @@ void deepSleep(){
 
 	//Sleep
 	HAL_SuspendTick();
-	initPin(GPIOA,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
 	initPin(GPIOB,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
 	initPin(GPIOC,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
 	initPin(GPIOD,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
 	initPin(GPIOE,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
 
-	initPin(GPIOA,GPIO_MODE_INPUT,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_8,GPIO_PULLDOWN);
-	initPin(GPIOA,GPIO_MODE_OUTPUT_PP,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_10,GPIO_PULLDOWN);
+	if (state == IDLE){
+		initPin(GPIOA,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
+		initPin(GPIOA,GPIO_MODE_INPUT,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_8,GPIO_PULLDOWN);
+		initPin(GPIOA,GPIO_MODE_OUTPUT_PP,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_10,GPIO_PULLDOWN);
+	}
 
 	HAL_ADC_DeInit(&hadc1);
-	HAL_TIM_PWM_DeInit(&_htim);
+	//HAL_TIM_PWM_DeInit(&_htim);
 
 	__HAL_RCC_TIM2_CLK_DISABLE();
 	__HAL_RCC_WWDG_CLK_DISABLE();
@@ -163,6 +165,7 @@ void deepSleep(){
 	__HAL_RCC_SPI1_CLK_DISABLE() ;
 	__HAL_RCC_USART1_CLK_DISABLE();
 
+	//HAL_PWR_EnterSTANDBYMode();
 	HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON,PWR_STOPENTRY_WFI);
 
 	//Wake Up
@@ -173,6 +176,32 @@ void deepSleep(){
 
 }
 
+void  dispensingProc(void){
+	uint32_t value=0;
+	HAL_GPIO_WritePin(motor,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(proxLED,GPIO_PIN_SET);
+	HAL_Delay(50);
+	while (state == IS_DISPENSING){
+		if (HAL_GPIO_ReadPin(tiltSwitch)){
+			HAL_GPIO_WritePin(motor,GPIO_PIN_RESET);
+		}else{
+			HAL_GPIO_WritePin(motor,GPIO_PIN_SET);
+			HAL_Delay(50);
+		}
+
+		HAL_ADC_Start(&hadc1);
+		if (HAL_ADC_PollForConversion(&hadc1, 1000000) == HAL_OK){
+			value = HAL_ADC_GetValue(&hadc1);
+			if (value > 1000){
+				HAL_GPIO_WritePin(proxLED,GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(motor,GPIO_PIN_RESET);
+
+				state = IDLE;
+
+			}
+		}
+	}
+}
 
 static void MX_ADC1_Init(void)
 {
@@ -217,12 +246,12 @@ void Error_Handler(void)
   /* USER CODE END Error_Handler_Debug */
 }
 
-void setNextAlarm(void){
+void setNextAlarm(int delay){
 	RTC_AlarmTypeDef alarm;
 	RTC_TimeTypeDef *time = &alarm.AlarmTime;
 	HAL_RTC_GetTime(&hrtc, time,  RTC_FORMAT_BIN);
 
-	time->Seconds += 15;
+	time->Seconds += delay;
 
 	while(time->Seconds>59){
 		time->Seconds -= 60;
@@ -239,13 +268,15 @@ void setNextAlarm(void){
 }
 
 void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *rtc) {
-  state = WAITING_FOR_DISPENSE;
-  __HAL_TIM_SET_COMPARE(&_htim, TIM_CHANNEL_1, 2);
+	EventAlarm  = 1;
+
 }
 
 void EXTI9_5_IRQHandler(void){
 	HAL_NVIC_ClearPendingIRQ(EXTI9_5_IRQn);
 	__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_9);
+
+	EventPush = 1;
 }
 
 /**

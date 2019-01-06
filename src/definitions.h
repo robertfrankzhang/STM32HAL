@@ -11,5 +11,6 @@
 #define motor GPIOA,GPIO_PIN_10
 #define tiltSwitch GPIOA,GPIO_PIN_8
 #define proxLED GPIOA,GPIO_PIN_5
+#define pulseLED GPIOA,GPIO_PIN_6
 
 #endif /* DEFINITIONS_H_ */
