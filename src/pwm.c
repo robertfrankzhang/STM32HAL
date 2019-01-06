@@ -67,7 +67,6 @@ void HAL_TIM_PWM_MspInit(TIM_HandleTypeDef* htim_pwm) {
   		__TIM3_CLK_ENABLE();
 }
 
-
 void pwm_Init(uint32_t pin, TIM_TypeDef* timer, GPIO_TypeDef* port, uint32_t prescaler, uint32_t period, uint32_t pulse, uint32_t channel,TIM_HandleTypeDef *_htim){
   TIM_Init(prescaler, period, pulse, channel,_htim,pin,timer,port);
   HAL_TIM_Base_Start(_htim);

@@ -17,9 +17,8 @@
 			
 void initPin(GPIO_TypeDef* port, uint32_t mode, uint32_t speed, uint32_t pin, uint32_t pull);
 void initAllPins(void);
-void SystemClock_Config(void);
+void SystemClock_Config();
 void setNextAlarm(void);
-static void MX_GPIO_Init(void);
 
 TIM_HandleTypeDef _htim;
 TIM_HandleTypeDef _htim2;
@@ -41,13 +40,12 @@ int main(void){
 	SystemClock_Config();
 	/* Initialize all configured peripherals */
 	RTC_Init();
-	MX_GPIO_Init();
 	initAllPins();
-
 
 	uint32_t value=0;
 
 	while(1){
+
 		if (!HAL_GPIO_ReadPin(button)){
 			if (state == WAITING_FOR_DISPENSE && buttonDown == 0){
 				//make timestamp
@@ -86,6 +84,11 @@ int main(void){
 				}
 			}
 		}
+#ifdef USE_INTERRUPT
+		if(state == IDLE){
+			deepSleep();
+		}
+#endif
 
 	}
 }
@@ -99,18 +102,25 @@ void initPin(GPIO_TypeDef* port, uint32_t mode, uint32_t speed, uint32_t pin, ui
 	HAL_GPIO_Init(port, &gpio);
 }
 
+
 void initAllPins(){
+	initPin(GPIOA,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
+	initPin(GPIOB,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
+	initPin(GPIOC,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
+	initPin(GPIOD,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
+	initPin(GPIOE,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
+
 	//Motor Output
 	initPin(GPIOA,GPIO_MODE_OUTPUT_PP,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_10,GPIO_NOPULL);
 
 	//Button
 #ifdef USE_INTERRUPT
-	initPin(GPIOA,GPIO_MODE_IT_FALLING,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_9,GPIO_PULLUP);
+	initPin(GPIOA,GPIO_MODE_IT_RISING_FALLING,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_9,GPIO_PULLUP);
 #else
 	initPin(GPIOA,GPIO_MODE_INPUT,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_9,GPIO_PULLUP);
 #endif
 	//Tilt Switch
-	initPin(GPIOA,GPIO_MODE_INPUT,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_11,GPIO_PULLUP);
+	initPin(GPIOA,GPIO_MODE_INPUT,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_8,GPIO_PULLUP);
 
 	//Pulsing Visible LED
 	pwm_Init(GPIO_PIN_6,TIM3,GPIOA,40000,400,2,TIM_CHANNEL_1,&_htim);
@@ -123,13 +133,44 @@ void initAllPins(){
 }
 
 void deepSleep(){
+
 	//Sleep
 	HAL_SuspendTick();
+	initPin(GPIOA,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
+	initPin(GPIOB,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
+	initPin(GPIOC,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
+	initPin(GPIOD,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
+	initPin(GPIOE,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
+
+	initPin(GPIOA,GPIO_MODE_INPUT,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_8,GPIO_PULLDOWN);
+	initPin(GPIOA,GPIO_MODE_OUTPUT_PP,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_10,GPIO_PULLDOWN);
+
+	HAL_ADC_DeInit(&hadc1);
+	HAL_TIM_PWM_DeInit(&_htim);
+
+	__HAL_RCC_TIM2_CLK_DISABLE();
+	__HAL_RCC_WWDG_CLK_DISABLE();
+	__HAL_RCC_USART2_CLK_DISABLE();
+	__HAL_RCC_I2C1_CLK_DISABLE();
+	__HAL_RCC_BKP_CLK_DISABLE() ;
+	__HAL_RCC_PWR_CLK_DISABLE();
+	__HAL_RCC_AFIO_CLK_DISABLE();
+	__HAL_RCC_GPIOB_CLK_DISABLE();
+	__HAL_RCC_GPIOC_CLK_DISABLE();
+	__HAL_RCC_GPIOD_CLK_DISABLE();
+	__HAL_RCC_ADC1_CLK_DISABLE();
+	__HAL_RCC_TIM1_CLK_DISABLE();
+	__HAL_RCC_SPI1_CLK_DISABLE() ;
+	__HAL_RCC_USART1_CLK_DISABLE();
+
 	HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON,PWR_STOPENTRY_WFI);
 
 	//Wake Up
 	SystemClock_Config();
+	initAllPins();
+	MX_ADC1_Init();
 	HAL_ResumeTick();
+
 }
 
 
@@ -202,23 +243,6 @@ void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *rtc) {
   __HAL_TIM_SET_COMPARE(&_htim, TIM_CHANNEL_1, 2);
 }
 
-static void MX_GPIO_Init(void)
-{
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-
-  /* GPIO Ports Clock Enable */
-  //__HAL_RCC_GPIOC_CLK_ENABLE();
-  //__HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-
-  /*Configure GPIO pin : PA9 */
-  GPIO_InitStruct.Pin = GPIO_PIN_9;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-}
-
 void EXTI9_5_IRQHandler(void){
 	HAL_NVIC_ClearPendingIRQ(EXTI9_5_IRQn);
 	__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_9);
@@ -228,8 +252,7 @@ void EXTI9_5_IRQHandler(void){
   * @brief System Clock Configuration
   * @retval None
   */
-void SystemClock_Config(void)
-{
+void SystemClock_Config(){
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
   RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
@@ -238,6 +261,7 @@ void SystemClock_Config(void)
   */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
