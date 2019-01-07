@@ -28,6 +28,10 @@ enum DispenseState{
 	IDLE,WAITING_FOR_DISPENSE,IS_DISPENSING
 };
 
+enum BufferState{
+	CONNECTED,DISCONNECTED,NONE
+};
+
 enum DispenseState state = WAITING_FOR_DISPENSE;
 
 uint8_t  EventAlarm = 0;
@@ -84,7 +88,7 @@ int main(void){
 					//__HAL_TIM_SET_COMPARE(&_htim, TIM_CHANNEL_1, 2);
 					dispensingProc();
 					__HAL_TIM_SET_COMPARE(&_htim, TIM_CHANNEL_1, 0);
-					setNextAlarm(120);
+					setNextAlarm(15);
 				}
 			}
 			break;
@@ -116,7 +120,7 @@ void initAllPins(){
 	initPin(GPIOA,GPIO_MODE_IT_FALLING,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_9,GPIO_PULLUP);
 
 	//Tilt Switch
-	initPin(GPIOA,GPIO_MODE_INPUT,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_8,GPIO_PULLUP);
+	initPin(GPIOA,GPIO_MODE_IT_RISING_FALLING,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_8,GPIO_PULLUP);
 
 	//Pulsing Visible LED
 	if (state == IS_DISPENSING){
@@ -177,29 +181,60 @@ void deepSleep(){
 }
 
 void  dispensingProc(void){
+	enum BufferState currentBuffer = CONNECTED;
+	const uint16_t MAX_COUNTER = 500; //Change to make buffer longer/shorter. Make it 0 to remove.
+	uint16_t bufferCounter = MAX_COUNTER;
 	uint32_t value=0;
-	HAL_GPIO_WritePin(motor,GPIO_PIN_SET);
-	HAL_GPIO_WritePin(proxLED,GPIO_PIN_SET);
-	HAL_Delay(50);
 	while (state == IS_DISPENSING){
-		if (HAL_GPIO_ReadPin(tiltSwitch)){
-			HAL_GPIO_WritePin(motor,GPIO_PIN_RESET);
-		}else{
-			HAL_GPIO_WritePin(motor,GPIO_PIN_SET);
-			HAL_Delay(50);
-		}
-
-		HAL_ADC_Start(&hadc1);
-		if (HAL_ADC_PollForConversion(&hadc1, 1000000) == HAL_OK){
-			value = HAL_ADC_GetValue(&hadc1);
-			if (value > 1000){
-				HAL_GPIO_WritePin(proxLED,GPIO_PIN_RESET);
-				HAL_GPIO_WritePin(motor,GPIO_PIN_RESET);
-
-				state = IDLE;
-
+		if (HAL_GPIO_ReadPin(tiltSwitch)){//If Tilt Switch Disconnected
+			if (currentBuffer == CONNECTED || currentBuffer == NONE){
+				bufferCounter = 0;
+				currentBuffer = DISCONNECTED;
 			}
+			if (bufferCounter < MAX_COUNTER){
+				HAL_GPIO_WritePin(motor,GPIO_PIN_RESET);
+				++bufferCounter;
+				HAL_Delay(1);
+			}else{
+				if (currentBuffer != NONE){
+					HAL_GPIO_WritePin(proxLED,GPIO_PIN_RESET);
+					currentBuffer = NONE;
+					bufferCounter = 0;
+					deepSleep();
+				}
+			}
+		}else{ //If Tilt Switch Connected
+			if (currentBuffer == DISCONNECTED || currentBuffer == NONE){
+				bufferCounter = 0;
+				currentBuffer = CONNECTED;
+			}
+			if (bufferCounter < MAX_COUNTER){
+				++bufferCounter;
+				HAL_Delay(1);
+			}else{
+				if (currentBuffer != NONE){
+					HAL_GPIO_WritePin(motor,GPIO_PIN_SET);
+					HAL_GPIO_WritePin(proxLED,GPIO_PIN_SET);
+					HAL_Delay(50);
+					currentBuffer = NONE;
+					bufferCounter = 0;
+				}
+				HAL_ADC_Start(&hadc1);
+				if (HAL_ADC_PollForConversion(&hadc1, 1000000) == HAL_OK){
+					value = HAL_ADC_GetValue(&hadc1);
+					if (value > 1000){
+						HAL_GPIO_WritePin(proxLED,GPIO_PIN_RESET);
+						HAL_GPIO_WritePin(motor,GPIO_PIN_RESET);
+
+						state = IDLE;
+
+					}
+				}
+			}
+
+
 		}
+
 	}
 }
 
@@ -273,10 +308,17 @@ void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *rtc) {
 }
 
 void EXTI9_5_IRQHandler(void){
-	HAL_NVIC_ClearPendingIRQ(EXTI9_5_IRQn);
-	__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_9);
+	uint32_t pending = EXTI->PR;
 
-	EventPush = 1;
+	if (pending & (1<<9)){
+		EventPush = 1;
+		__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_9);
+	}
+	if (pending & (1<<8)){
+		__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_8);
+	}
+	HAL_NVIC_ClearPendingIRQ(EXTI9_5_IRQn);
+
 }
 
 /**
