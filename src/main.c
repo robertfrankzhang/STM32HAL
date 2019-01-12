@@ -13,6 +13,7 @@
 #include "pwm.h"
 #include "definitions.h"
 #include "rtc.h"
+#include "db.h"
 			
 void initPin(GPIO_TypeDef* port, uint32_t mode, uint32_t speed, uint32_t pin, uint32_t pull);
 void initAllPins(void);
@@ -66,6 +67,7 @@ int main(void){
 			}
 			if (EventPush){
 				EventPush = 0;
+				DB_add(Event_IDLE);
 			}
 			break;
 		case WAITING_FOR_DISPENSE:
@@ -78,17 +80,17 @@ int main(void){
 				HAL_Delay(10);
 				HAL_GPIO_WritePin(pulseLED,GPIO_PIN_RESET);
 				setNextAlarm(2);
-
 			}
 			if (EventPush){
 				EventPush = 0;
 				if( HAL_GPIO_ReadPin(button)==0){
+					DB_add(Event_ALLOWED);
 					state = IS_DISPENSING;
 					pwm_Init(GPIO_PIN_6,TIM3,GPIOA,40000,400,2,TIM_CHANNEL_1,&_htim);
 					//__HAL_TIM_SET_COMPARE(&_htim, TIM_CHANNEL_1, 2);
 					dispensingProc();
 					__HAL_TIM_SET_COMPARE(&_htim, TIM_CHANNEL_1, 0);
-					setNextAlarm(15);
+					setNextAlarm(30);
 				}
 			}
 			break;
@@ -107,7 +109,7 @@ void initPin(GPIO_TypeDef* port, uint32_t mode, uint32_t speed, uint32_t pin, ui
 
 
 void initAllPins(){
-	initPin(GPIOA,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
+	initPin(GPIOA,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All&~(GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_5|GPIO_PIN_6),GPIO_NOPULL);
 	initPin(GPIOB,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
 	initPin(GPIOC,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
 	initPin(GPIOD,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
@@ -145,10 +147,11 @@ void deepSleep(){
 	initPin(GPIOD,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
 	initPin(GPIOE,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
 
-	if (state == IDLE){
-		initPin(GPIOA,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
-		initPin(GPIOA,GPIO_MODE_INPUT,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_8,GPIO_PULLDOWN);
-		initPin(GPIOA,GPIO_MODE_OUTPUT_PP,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_10,GPIO_PULLDOWN);
+	if (state == IDLE || state == WAITING_FOR_DISPENSE){
+		initPin(GPIOA,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All&~(GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10),GPIO_NOPULL);
+		initPin(GPIOA,GPIO_MODE_INPUT,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_8,GPIO_PULLDOWN);//motor
+		initPin(GPIOA,GPIO_MODE_OUTPUT_PP,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_10,GPIO_PULLDOWN);//tilt switch
+		//initPin(GPIOA,GPIO_MODE_IT_FALLING,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_9,GPIO_PULLUP);//button
 	}
 
 	HAL_ADC_DeInit(&hadc1);
@@ -180,7 +183,7 @@ void deepSleep(){
 
 }
 
-void  dispensingProc(void){
+void dispensingProc(void){
 	enum BufferState currentBuffer = CONNECTED;
 	const uint16_t MAX_COUNTER = 500; //Change to make buffer longer/shorter. Make it 0 to remove.
 	uint16_t bufferCounter = MAX_COUNTER;
