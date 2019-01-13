@@ -1,11 +1,15 @@
 #include "db.h"
 #include "serial.h"
 
+
 extern RTC_HandleTypeDef hrtc;
 DB_t _db;
+PrescriptionData_t prescriptionData;
 
 void DB_init(void){
 	DB_clear();
+	prescriptionData.lockoutPeriod = 10;
+	prescriptionData.pillCount = 10;
 }
 
 void DB_clear(void){
@@ -27,10 +31,6 @@ int8_t DB_add(DB_Event_t event){
 				time.Hours,time.Minutes,time.Seconds,
 				event,_db.index);
 	return 0; // ok
-}
-
-DB_t *DB_get(void){
-	return &_db;
 }
 
 

@@ -20,9 +20,17 @@ typedef struct {
 	uint16_t index;
 } DB_t;
 
+typedef struct{
+	int lockoutPeriod;
+	uint8_t pillCount;
+} PrescriptionData_t;
+
 void DB_init(void);
 void DB_clear(void);
 int8_t DB_add(DB_Event_t event);
-DB_t *DB_get(void);
+
+extern DB_t _db;
+extern PrescriptionData_t prescriptionData;
 
 #endif // _db_h
+
