@@ -15,6 +15,8 @@
 uint8_t receiveBuffer[64];
 
 void dockingProc(){
+	initPin(GPIOA,GPIO_MODE_OUTPUT_PP,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_7,GPIO_NOPULL);
+	HAL_GPIO_WritePin(usbEnum,GPIO_PIN_SET);
 	if (state != DEAD){
 		//Turn all things off
 		HAL_GPIO_WritePin(motor,GPIO_PIN_RESET);
@@ -106,8 +108,7 @@ void dockingProc(){
 
 	//Go into normal functioning mode
 	state_machine_init();
-
-
+	initPin(GPIOA,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_7,GPIO_NOPULL);
 
 
 
