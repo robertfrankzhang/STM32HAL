@@ -131,7 +131,7 @@ int main(void)
   MX_TIM3_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
-
+  DB_init(); //IF flash memory nonexistent else load up flash memory
   /* USER CODE END 2 */
 
   /* Infinite loop */

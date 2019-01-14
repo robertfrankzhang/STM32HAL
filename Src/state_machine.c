@@ -4,7 +4,8 @@
 #include "definitions.h"
 #include "db.h"
 #include "serial.h"
-			
+#include "dockingProcess.h"
+#include "state_machine.h"
 
 void initPin(GPIO_TypeDef* port, uint32_t mode, uint32_t speed, uint32_t pin, uint32_t pull);
 void initAllPins(void);
@@ -17,10 +18,6 @@ extern TIM_HandleTypeDef htim3;
 extern ADC_HandleTypeDef hadc1;
 extern RTC_HandleTypeDef hrtc;
 
-enum DispenseState{
-  IDLE,WAITING_FOR_DISPENSE,IS_DISPENSING
-};
-
 enum BufferState{
   CONNECTED,DISCONNECTED,NONE
 };
@@ -29,12 +26,13 @@ enum DispenseState state = WAITING_FOR_DISPENSE;
 
 uint8_t  EventAlarm = 0;
 uint8_t  EventPush = 0;
-uint8_t EventTilt = 0;
+uint8_t EventDock = 0;
 
 void state_machine_init(void){
   initAllPins();
 
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
   HAL_NVIC_SetPriority(RTC_Alarm_IRQn, 0xf, 0U);
   HAL_NVIC_EnableIRQ(RTC_Alarm_IRQn);
 
@@ -42,6 +40,10 @@ void state_machine_init(void){
 }
 
 void state_machine_run(void){
+  if (EventDock){
+	  EventDock = 0;
+	  dockingProc();
+  }
   switch(state){
   case IDLE:
     if (EventAlarm){
@@ -80,13 +82,21 @@ void state_machine_run(void){
     	//__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 2);
     	dispensingProc();
     	__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-    	setNextAlarm(10);
+    	setNextAlarm(prescriptionData.lockoutPeriod);
       }
     }
     break;
   default:
     break;
   }
+  if (prescriptionData.pillCount == 0){
+ 	  //Turn all things off
+ 	  HAL_GPIO_WritePin(motor,GPIO_PIN_RESET);
+ 	  HAL_GPIO_WritePin(proxLED,GPIO_PIN_RESET);
+ 	  initPin(GPIOA,GPIO_MODE_OUTPUT_PP,GPIO_SPEED_FREQ_HIGH,GPIO_PIN_6,GPIO_NOPULL);
+ 	  HAL_GPIO_WritePin(pulseLED,GPIO_PIN_RESET);
+ 	  state = DEAD;
+   }
 }
 
 void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *rtc) {
@@ -102,9 +112,17 @@ void EXTI9_5_IRQHandler(void){
   }
   if (pending & (1<<8)){
     __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_8);
-    EventTilt = 1;
   }
   HAL_NVIC_ClearPendingIRQ(EXTI9_5_IRQn);
+}
+
+void EXTI15_10_IRQHandler(void){
+	 uint32_t pending = EXTI->PR;
+	 if (pending & (1<<15)){
+		 EventDock = 1;
+		 __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_15);
+	 }
+	 HAL_NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
 }
 
 void initPin(GPIO_TypeDef* port, uint32_t mode, uint32_t speed, uint32_t pin, uint32_t pull){
@@ -119,7 +137,7 @@ void initPin(GPIO_TypeDef* port, uint32_t mode, uint32_t speed, uint32_t pin, ui
 
 void initAllPins(){
   initPin(GPIOA,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All &
-		  ~(GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_5|GPIO_PIN_6),GPIO_NOPULL);
+		  ~(GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_2),GPIO_NOPULL);
   initPin(GPIOB,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
   initPin(GPIOC,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
   initPin(GPIOD,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All,GPIO_NOPULL);
@@ -137,7 +155,7 @@ void initAllPins(){
   //Pulsing Visible LED
   if (state == IDLE || state == WAITING_FOR_DISPENSE){
   	initPin(GPIOA,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_All &
-  			~(GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10),GPIO_NOPULL);
+  			~(GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_2),GPIO_NOPULL);
   	initPin(GPIOA,GPIO_MODE_INPUT,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_8,GPIO_PULLDOWN);//tilt switch
   	initPin(GPIOA,GPIO_MODE_OUTPUT_PP,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_10,GPIO_PULLDOWN);//motor
   	//initPin(GPIOA,GPIO_MODE_IT_FALLING,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_9,GPIO_PULLUP);//button
@@ -148,8 +166,13 @@ void initAllPins(){
 
   //Photoresistor
   //	initPin(GPIOA,GPIO_MODE_ANALOG,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_4,GPIO_NOPULL);
-}
 
+  //Charging Detection GPIO
+  initPin(GPIOA,GPIO_MODE_IT_RISING,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_15,GPIO_NOPULL);
+
+  //Fully Charged Detection
+  initPin(GPIOA,GPIO_MODE_INPUT,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_2,GPIO_PULLUP);
+}
 
 void  dispensingProc(void){
   enum BufferState currentBuffer = CONNECTED;
@@ -159,6 +182,11 @@ void  dispensingProc(void){
   while (state == IS_DISPENSING){
 	if (EventAlarm){
 		EventAlarm = 0;
+	}
+	if (EventDock){
+		EventDock = 0;
+		dockingProc();
+		return;
 	}
     if (HAL_GPIO_ReadPin(tiltSwitch)){//If Tilt Switch Disconnected
       if (currentBuffer == CONNECTED || currentBuffer == NONE){
@@ -193,7 +221,6 @@ void  dispensingProc(void){
           HAL_Delay(50);
           currentBuffer = NONE;
           bufferCounter = 0;
-          EventTilt = 0;
         }
       }
       if (HAL_GPIO_ReadPin(proxLED)){
@@ -204,6 +231,7 @@ void  dispensingProc(void){
 			  HAL_GPIO_WritePin(proxLED,GPIO_PIN_RESET);
 			  HAL_GPIO_WritePin(motor,GPIO_PIN_RESET);
 			  state = IDLE;
+			  --prescriptionData.pillCount;
 			} // if value
 		  } // if Poll == OK
       }
@@ -234,11 +262,11 @@ void setNextAlarm(int delay){
   HAL_RTC_SetAlarm_IT(&hrtc, &alarm, RTC_FORMAT_BIN);
 }
 
-#if 0
+#if 1
 void deepSleep(void){
   while(1){
 	HAL_Delay(20);
-	if(EventAlarm||EventPush||EventTilt)
+	if(EventAlarm||EventPush)
 	  initAllPins();
 	  return;
   }

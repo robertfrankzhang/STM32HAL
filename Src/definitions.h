@@ -12,5 +12,7 @@
 #define tiltSwitch GPIOA,GPIO_PIN_8
 #define proxLED GPIOA,GPIO_PIN_5
 #define pulseLED GPIOA,GPIO_PIN_6
+#define fullyChargedMonitor GPIOA,GPIO_PIN_2
+#define isPluggedInMonitor GPIOA,GPIO_PIN_15
 
 #endif /* DEFINITIONS_H_ */

@@ -13,8 +13,14 @@ void serial_init(void){
 }
 
 uint8_t serial_send(uint8_t *data,uint16_t len){
-  if (hUsbDeviceFS.dev_state == USBD_STATE_CONFIGURED)
-    return CDC_Transmit_FS(data,len);
+  if (hUsbDeviceFS.dev_state == USBD_STATE_CONFIGURED){
+	  for (int i = 0; i<5; i++){
+		  if (CDC_Transmit_FS(data,len) == USBD_OK){
+			  break;
+		  }
+		  HAL_Delay(50);
+	  }
+  }
   return 0;
 }
 
