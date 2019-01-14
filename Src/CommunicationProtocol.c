@@ -62,6 +62,7 @@ enum Result talk(enum Action command){//Loop process of Hello, Receive Affirm, S
 										  _db.item[i].date.Year,_db.item[i].time.Hours,
 										  _db.item[i].time.Minutes,_db.item[i].time.Seconds};
 				sendMessage(messageBody,8,Timestamp);
+				HAL_Delay(100);
 			}
 		}else if (command == Charge_Full){
 			sendEmptyMessage(Full);

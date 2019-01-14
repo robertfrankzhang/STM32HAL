@@ -262,7 +262,7 @@ void setNextAlarm(int delay){
   HAL_RTC_SetAlarm_IT(&hrtc, &alarm, RTC_FORMAT_BIN);
 }
 
-#if 0
+#if 1
 void deepSleep(void){
   while(1){
 	HAL_Delay(20);
