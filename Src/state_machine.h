@@ -11,4 +11,5 @@ enum DispenseState{
 };
 void initPin(GPIO_TypeDef* port, uint32_t mode, uint32_t speed, uint32_t pin, uint32_t pull);
 extern enum DispenseState state;
+extern uint32_t batValue;
 #endif //__state_machine

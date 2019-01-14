@@ -13,6 +13,7 @@ void setNextAlarm(int delay);
 void dispensingProc(void);
 void deepSleep(void);
 void MX_ADC_Init_ex();
+uint32_t getADC(uint32_t channel);
 
 extern TIM_HandleTypeDef htim3;
 extern ADC_HandleTypeDef hadc1;
@@ -27,6 +28,8 @@ enum DispenseState state = WAITING_FOR_DISPENSE;
 uint8_t  EventAlarm = 0;
 uint8_t  EventPush = 0;
 uint8_t EventDock = 0;
+
+uint32_t batValue=0;
 
 void state_machine_init(void){
   initAllPins();
@@ -44,6 +47,8 @@ void state_machine_run(void){
 	  EventDock = 0;
 	  dockingProc();
   }
+  batValue = getADC(ADC_CHANNEL_3);
+
   switch(state){
   case IDLE:
     if (EventAlarm){
@@ -224,20 +229,30 @@ void  dispensingProc(void){
         }
       }
       if (HAL_GPIO_ReadPin(proxLED)){
-		  HAL_ADC_Start(&hadc1);
-		  if (HAL_ADC_PollForConversion(&hadc1, 1000000) == HAL_OK){
-			value = HAL_ADC_GetValue(&hadc1);
-			if (value > 1000){
-			  HAL_GPIO_WritePin(proxLED,GPIO_PIN_RESET);
-			  HAL_GPIO_WritePin(motor,GPIO_PIN_RESET);
-			  state = IDLE;
-			  --prescriptionData.pillCount;
-			} // if value
-		  } // if Poll == OK
+	value = getADC(ADC_CHANNEL_4);
+	if (value != 0xffffffff && value > 1000){
+	  HAL_GPIO_WritePin(proxLED,GPIO_PIN_RESET);
+	  HAL_GPIO_WritePin(motor,GPIO_PIN_RESET);
+	  state = IDLE;
+	  --prescriptionData.pillCount;
+	} // if value
       }
       // if bufferCounter
     } // if tilt switch
   } // while
+}
+
+uint32_t getADC(uint32_t channel){
+  ADC_ChannelConfTypeDef sConfig = {0};
+  sConfig.Channel = channel;
+  sConfig.Rank = ADC_REGULAR_RANK_1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+    return 0xffffffff;
+  HAL_ADC_Start(&hadc1);
+  if (HAL_ADC_PollForConversion(&hadc1, 1000000) != HAL_OK)
+    return 0xffffffff;
+  return HAL_ADC_GetValue(&hadc1);
 }
 
 void setNextAlarm(int delay){
