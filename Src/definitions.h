@@ -14,5 +14,6 @@
 #define pulseLED GPIOA,GPIO_PIN_6
 #define fullyChargedMonitor GPIOA,GPIO_PIN_2
 #define isPluggedInMonitor GPIOA,GPIO_PIN_15
+#define usbEnum GPIOA,GPIO_PIN_7
 
 #endif /* DEFINITIONS_H_ */

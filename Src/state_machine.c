@@ -177,6 +177,7 @@ void initAllPins(){
 
   //Fully Charged Detection
   initPin(GPIOA,GPIO_MODE_INPUT,GPIO_SPEED_FREQ_MEDIUM,GPIO_PIN_2,GPIO_PULLUP);
+
 }
 
 void  dispensingProc(void){
@@ -277,7 +278,7 @@ void setNextAlarm(int delay){
   HAL_RTC_SetAlarm_IT(&hrtc, &alarm, RTC_FORMAT_BIN);
 }
 
-#if 1
+#if 0
 void deepSleep(void){
   while(1){
 	HAL_Delay(20);
