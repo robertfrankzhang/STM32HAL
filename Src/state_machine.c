@@ -33,13 +33,6 @@ uint32_t batValue=0;
 
 void state_machine_init(void){
   initAllPins();
-
-  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
-  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
-  HAL_NVIC_SetPriority(RTC_Alarm_IRQn, 0xf, 0U);
-  HAL_NVIC_EnableIRQ(RTC_Alarm_IRQn);
-
-  setNextAlarm(2);
 }
 
 void state_machine_run(void){
