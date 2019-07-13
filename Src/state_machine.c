@@ -32,7 +32,7 @@ uint8_t EventDock = 0;
 uint32_t batValue=0;
 
 void state_machine_init(void){
-  initAllPins();
+  //initAllPins(); //Done already
 
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
