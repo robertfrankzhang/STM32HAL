@@ -10,4 +10,5 @@ enum CurrentState{
 };
 extern enum CurrentState state;
 extern uint32_t batValue;
+extern uint32_t shouldDeepSleep;
 #endif //__state_machine

@@ -23,7 +23,7 @@
 #define motorAFLTADC ADC_CHANNEL_2
 #define motorBFLTADC ADC_CHANNEL_8
 
-#define isPluggedIn GPIOA,GPIO_PIN_8//FAKE PIN
+#define isPluggedIn GPIOA,GPIO_PIN_8//Hand Soldered Wire to PIN
 #define isPluggedInPin GPIO_PIN_8
 #define motorSleep GPIOB,GPIO_PIN_1
 #define irReceiverPower GPIOB,GPIO_PIN_4
@@ -38,10 +38,10 @@
 #define userSwitchPin GPIO_PIN_13
 #define userSwitchPort GPIOB
 
-#define lockMotorA1 GPIOA,GPIO_PIN_3
+#define lockMotorA1 GPIOA,GPIO_PIN_3 //Should be PWM
 #define lockMotorA2 GPIOA,GPIO_PIN_4
 #define dispenseMotorB2 GPIOA,GPIO_PIN_5
-#define dispenseMotorB1 GPIOA,GPIO_PIN_6
+#define dispenseMotorB1 GPIOA,GPIO_PIN_6 //Should be PWM
 
 #define motorFault GPIOA,GPIO_PIN_7
 

@@ -14,9 +14,6 @@
 #include "state_machine.h"
 #include "main.h"
 
-
-
-
 uint32_t getADC(uint32_t channel){
   ADC_ChannelConfTypeDef sConfig = {0};
   sConfig.Channel = channel;

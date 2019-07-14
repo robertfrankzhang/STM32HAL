@@ -24,6 +24,9 @@ void DB_clear(void){
 }
 
 int8_t DB_add(DB_Event_t event){
+	if (_db.index == 0){
+		prescriptionData.hasPrescriptionHistory = 1;
+	}
 	if(_db.index >= DB_ITEM_MAX)
 		return -1; // fail
 	RTC_TimeTypeDef time;

@@ -56,6 +56,7 @@
 /* USER CODE BEGIN Includes */
 #include "state_machine.h"
 #include "stm32f1xx.h"
+#include "hardware_abstraction_layer.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -152,10 +153,11 @@ int main(void)
   HAL_NVIC_SetPriority(RTC_Alarm_IRQn, 0xf, 0U);
   HAL_NVIC_EnableIRQ(RTC_Alarm_IRQn);
   AFIO->EXTICR[3] = 0x00000010;//Set pin 13 to port B as interrupt
-
+  setAlarm(2);
   while (1){
-
-    deepSleep();
+	if (shouldDeepSleep){
+		deepSleep();
+	}
     state_machine_run();
 
 	//RTC_DateTypeDef date;
