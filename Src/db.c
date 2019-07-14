@@ -9,7 +9,14 @@ PrescriptionData_t prescriptionData;
 void DB_init(void){
 	DB_clear();
 	prescriptionData.lockoutPeriod = 10;
-	prescriptionData.pillCount = 10;
+	prescriptionData.totalPillCount = 10;
+	prescriptionData.pillCount = prescriptionData.totalPillCount;
+	prescriptionData.impulseProofHoldTime = 10;
+	prescriptionData.operatingMode = Opmode_IMPULSEPROOF;
+	prescriptionData.dockID = 1234;
+	prescriptionData.prescriptionID = 5678;
+	prescriptionData.hasPrescriptionUploaded = 1;
+	prescriptionData.hasPrescriptionHistory = 0;
 }
 
 void DB_clear(void){

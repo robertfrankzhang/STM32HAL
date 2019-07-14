@@ -12,6 +12,7 @@
 
 extern ADC_HandleTypeDef hadc1;
 extern RTC_HandleTypeDef hrtc;
+extern TIM_HandleTypeDef htim2;
 void initAllPins(void);
 
 #endif /* MAIN_H_ */

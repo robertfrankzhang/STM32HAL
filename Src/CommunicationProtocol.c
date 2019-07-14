@@ -40,9 +40,9 @@ enum Result talk(enum Action command){//Loop process of Hello, Receive Affirm, S
 		uint8_t counter = 0;
 		while ((len=getSerialData(receiveBuffer,64))==0){
 			HAL_Delay(10);
-			if (!HAL_GPIO_ReadPin(isPluggedInMonitor)){//If unplugged
-				return Unplugged;
-			}
+//			if (!HAL_GPIO_ReadPin(isPluggedInMonitor)){//If unplugged
+//				return Unplugged;
+//			}
 			if (counter > 100){
 				break;
 			}
@@ -73,9 +73,9 @@ enum Result talk(enum Action command){//Loop process of Hello, Receive Affirm, S
 		uint8_t counter = 0;
 		while ((len=getSerialData(receiveBuffer,64))==0){
 			HAL_Delay(10);
-			if (!HAL_GPIO_ReadPin(isPluggedInMonitor)){//If unplugged
-				return Unplugged;
-			}
+//			if (!HAL_GPIO_ReadPin(isPluggedInMonitor)){//If unplugged
+//				return Unplugged;
+//			}
 			if (counter > 100){
 				break;
 			}
