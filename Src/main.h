@@ -11,8 +11,14 @@
 #include "state_machine.h"
 
 extern ADC_HandleTypeDef hadc1;
+
 extern RTC_HandleTypeDef hrtc;
+
+extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim2;
+extern TIM_HandleTypeDef htim3;
+
+
 void initAllPins(void);
 
 #endif /* MAIN_H_ */

@@ -47,6 +47,7 @@ void startDownloadProcess(enum CurrentState currentState){//currentState is stat
 uint32_t dispenseFailed(){//always returns 0. Sets state back to ABLE_TO_DISPENSE
 	state = ABLE_TO_DISPENSE;
 	HAL_GPIO_WritePin(motorSleep,RESET);
+	HAL_GPIO_WritePin(irReceiverPower,RESET);//Turn off power for pill drop ADC reader
 	_db.item[_db.index].dispenseStatus = Dispense_FAIL;
 	setAlarm(2);
 	return 0;
@@ -120,10 +121,9 @@ void state_machine_run(void){
 	  //Handle if Button was just pressed
 	  if (EventPush){
 		  EventPush = 0;
-		  if( HAL_GPIO_ReadPin(userSwitch)==0){
-			  DB_add(Event_ALLOWED);
-			  state = DISPENSING;
-		  }
+		  DB_add(Event_ALLOWED);
+		  state = DISPENSING;
+		  shouldDeepSleep = 0;
 	  }
 
 	  //If Plugged In
@@ -141,20 +141,20 @@ void state_machine_run(void){
   case DISPENSING://For when the device is dispensing
 	  shouldDeepSleep = 1;
 	  //Set up Timer 2 as internal timer for IR rapid interrupt
-	  htim2.Init.Prescaler = 48;
-	  htim2.Init.Period = 500;
-	  HAL_TIM_Base_Init(&htim2);
-	  HAL_TIM_Base_Start_IT(&htim2);
-	  HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
-	  HAL_NVIC_EnableIRQ(TIM2_IRQn);
+	  htim1.Init.Prescaler = 48;
+	  htim1.Init.Period = 500;
+	  HAL_TIM_Base_Init(&htim1);
+	  HAL_TIM_Base_Start_IT(&htim1);
+	  //todo HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
+	  //todo HAL_NVIC_EnableIRQ(TIM2_IRQn);
+	  HAL_GPIO_WritePin(irReceiverPower,SET);//Turn on power for pill drop ADC reader
 
 	  uint8_t continueDispense = 1;
 	  uint8_t jamCounter = 0;
-	  uint8_t motorDirection = 1;//odds are forward, evens are backwards
+	  uint8_t motorDirection = 1;//1 is forward, 0 is backwards
+
 	  //Start motor and motor Alarm
-	  HAL_GPIO_WritePin(lockMotorA2,RESET);
-	  HAL_GPIO_WritePin(lockMotorA1,SET);//Should be PWM init though
-	  HAL_GPIO_WritePin(motorSleep,SET);
+	  spinDispenseMotor(1);
 	  setAlarm(5);
 
 	  while (continueDispense){
@@ -177,20 +177,19 @@ void state_machine_run(void){
 		  }
 
 		  //If Jam Detected
-		  if(getADC(motorAFLTADC) > 50){//50 value needs to be tested
+		  uint32_t motorCurrentAdc = getADC(motorAFLTADC);
+		  if( motorCurrentAdc > 50){//50 value needs to be tested
 			  jamCounter++;
 			  if (jamCounter>=4){//Dispense Failed
 				  continueDispense = dispenseFailed();
 			  }
-			  else if (motorDirection%2 == 1){//Switch to Backward Spin
-				  motorDirection++;
-				  HAL_GPIO_WritePin(lockMotorA2,SET);
-				  HAL_GPIO_WritePin(lockMotorA1,RESET);//Should be PWM init though
+			  else if (motorDirection == 1){//Switch to Backward Spin
+				  motorDirection = 0;
+				  spinDispenseMotor(motorDirection);
 				  setAlarm(5);
 			  }else{//Switch to Forward Spin
-				  motorDirection++;
-				  HAL_GPIO_WritePin(lockMotorA2,RESET);
-				  HAL_GPIO_WritePin(lockMotorA1,SET);//Should be PWM init though
+				  motorDirection == 1;
+				  spinDispenseMotor(motorDirection);
 				  setAlarm(5);
 			  }
 		  }
@@ -212,6 +211,7 @@ void state_machine_run(void){
 		  			  prescriptionData.pillCount--;
 		  			  _db.item[_db.index].dispenseStatus = Dispense_SUCCESS;
 		  			  HAL_GPIO_WritePin(motorSleep,RESET);
+		  			  HAL_GPIO_WritePin(irReceiverPower,RESET);//Turn off power for pill drop ADC reader
 		  			  if (prescriptionData.pillCount <= 0){
 		  				  state = DEAD;
 		  				  shouldDeepSleep = 0; //Skip sleep cycle once to start DEAD
@@ -262,8 +262,9 @@ void EXTI15_10_IRQHandler(void){
 	 uint32_t pending = EXTI->PR;
 	 if (pending & (1<<13) && (state == IDLE || state == ABLE_TO_DISPENSE)){
 		 EventPush = 1;
-		 __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_13);
+		 //__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_13);
 	 }
+	 __HAL_GPIO_EXTI_CLEAR_IT(pending);
 	 HAL_NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
 }
 

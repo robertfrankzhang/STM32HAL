@@ -13,5 +13,6 @@ void setAlarm(int delay); //given a delay (in seconds), it will set a new RTC al
 void setPinsOfPortToLowPowe(GPIO_TypeDef* port, uint32_t pin1, uint32_t pin2, uint32_t pin3);//pin 1-3 are pins to be excluded (like buttons, which need to be kept pulled up/down). Put 0 if pin N/A
 void initPin(GPIO_TypeDef* port, uint32_t mode, uint32_t speed, uint32_t pin, uint32_t pull); //initializes a single pin
 void disableClocks();
+void spinDispenseMotor(uint8_t isForward);
 
 #endif /* HARDWARE_ABSTRACTION_LAYER_H_ */

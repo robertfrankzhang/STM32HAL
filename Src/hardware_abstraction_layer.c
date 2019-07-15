@@ -78,3 +78,15 @@ void initPin(GPIO_TypeDef* port, uint32_t mode, uint32_t speed, uint32_t pin, ui
   gpio.Pull  = pull;
   HAL_GPIO_Init(port, &gpio);
 }
+
+void spinDispenseMotor(int8_t isForward){
+	HAL_GPIO_WritePin(motorSleep,SET);
+	HAL_Delay(1);
+	if (isForward){//Forward
+		HAL_GPIO_WritePin(dispenseMotorB2,RESET);
+		HAL_GPIO_WritePin(dispenseMotorB1,SET);//Should be PWM init though
+	}else{
+		HAL_GPIO_WritePin(dispenseMotorB2,SET);
+		HAL_GPIO_WritePin(dispenseMotorB1,RESET);//Should be PWM init though
+	}
+}
