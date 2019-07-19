@@ -7,7 +7,7 @@
 
 #ifndef MAIN_H_
 #define MAIN_H_
-
+#include "definitions.h"
 #include "state_machine.h"
 
 extern ADC_HandleTypeDef hadc1;

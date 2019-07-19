@@ -7,6 +7,13 @@
 
 #ifndef DEFINITIONS_H_
 #define DEFINITIONS_H_
+
+// if not use PWM for motor control, make sure to set GPIOs to output in MX
+#define USE_MOTOR_PWM
+
+// define only for test, see file hw_test.c
+//#define HW_TEST
+
 /*
 #define button GPIOA,GPIO_PIN_9
 #define motor GPIOA,GPIO_PIN_10

@@ -4,11 +4,20 @@
 #ifndef __state_machine
 #define __state_machine
 void state_machine_run(void);
-void deepSleep(void);
+
 enum CurrentState{
   DEAD,IDLE,ABLE_TO_DISPENSE,DISPENSING,DOWNLOADING,DOCKED,UPLOADING,UNLOCKED
 };
+
+enum SleepLevel {
+  SleepLevel_Wake,
+  SleepLevel_WaitEvent,
+  SleepLevel_Delay,
+  SleepLevel_DeepSleep,
+};
+extern enum SleepLevel sleepLevel;
+void goSleep(enum SleepLevel level);
+
 extern enum CurrentState state;
 extern uint32_t batValue;
-extern uint32_t shouldDeepSleep;
 #endif //__state_machine
