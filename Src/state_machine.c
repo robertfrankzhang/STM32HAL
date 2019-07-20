@@ -35,8 +35,8 @@ typedef enum {
 } SampleState;
 
 SampleState sample = SAMPLE_BG;
-int32_t BG_ADC_Value = 0;
-int32_t IR_ADC_Value = 0;
+int16_t BG_ADC_Value = 0;
+int16_t IR_ADC_Value = 0;
 
 void startDownloadProcess(enum CurrentState currentState){//currentState is state to go back to if dock unrecognized
   prevState = currentState;
@@ -44,14 +44,6 @@ void startDownloadProcess(enum CurrentState currentState){//currentState is stat
   sleepLevel = SleepLevel_Wake; //Skip sleep cycle once to start DOWNLOADING
 }
 
-uint32_t dispenseFailed(){//always returns 0. Sets state back to ABLE_TO_DISPENSE
-  state = ABLE_TO_DISPENSE;
-  stopDispenseMotor();
-  HAL_GPIO_WritePin(irReceiverPower,RESET);//Turn off power for pill drop ADC reader
-  _db.item[_db.index].dispenseStatus = Dispense_FAIL;
-  setAlarm(2);
-  return 0;
-}
 
 void state_machine_run(void){
   switch(state){
@@ -82,7 +74,7 @@ void state_machine_run(void){
     }
     break;
   case IDLE://For when not able to dispense yet
-    sleepLevel = SleepLevel_WaitEvent;
+    sleepLevel = SleepLevel_DeepSleep;
     if (EventAlarm){
       EventAlarm = 0;
       hasTimeoutEnded = 1;
@@ -107,7 +99,7 @@ void state_machine_run(void){
     }
     break;
   case ABLE_TO_DISPENSE://For when able to dispense, but haven't pressed
-    sleepLevel = SleepLevel_WaitEvent;
+    sleepLevel = SleepLevel_DeepSleep;
     hasTimeoutEnded = 0;
 
     //Handle if 2 second light pulse alarm just passed
@@ -140,25 +132,51 @@ void state_machine_run(void){
     }
     break;
   case DISPENSING://For when the device is dispensing
-    sleepLevel = SleepLevel_WaitEvent;
-    startIRSamplingTimer();
-
-    HAL_GPIO_WritePin(irReceiverPower,SET);//Turn on power for pill drop ADC reader
+    sleepLevel = SleepLevel_DeepSleep;
 
     uint8_t continueDispense = 1;
-    uint8_t jamCounter = 0;
-    uint8_t motorDirection = 1;//1 is forward, 0 is backwards
+    
+    uint8_t  jamCounter = 0;
+    uint8_t  motorDirection = 1;//1 is forward, 0 is backwards
+    uint32_t motorADCSum;
+    uint8_t  motorAvgCnt=0;
+    uint32_t motorDelayCnt=0;
+    
+    uint16_t IR_BG_Threshold = 480;
+    uint8_t dispensingFailed = 0;
 
-    //Start motor and motor Alarm
-    spinDispenseMotor(motorDirection);
-    setAlarm(5);
+    uint16_t IR_samlping_delay_cnt=0;
+    
+    // check if pill is out already
+    HAL_GPIO_WritePin(irReceiverPower,SET);//Turn on power for pill drop ADC reader
+    HAL_Delay(1);
+    IR_ADC_Value = getADC(irReceiverADC);
+    HAL_GPIO_WritePin(irReceiverPower,RESET);//Turn off power for pill drop ADC reader
+    HAL_Delay(1);
+    BG_ADC_Value = getADC(irReceiverADC);
+    if( IR_ADC_Value - BG_ADC_Value > IR_BG_Threshold){
+      continueDispense = 0;
+      dispensingFailed = 1; // previous pill still there, fail for this
+    }
+    else{
+      //Start motor and motor Alarm
+      spinDispenseMotor(motorDirection);
+      motorDelayCnt = 0;
+      continueDispense = 1;
+      setAlarm(5);
+    }
 
-
+    HAL_GPIO_WritePin(irReceiverPower,SET);//Turn on power for pill drop ADC reader
+    
+    // 2 ADC about 28.4khz loop
     while (continueDispense){
       //If Dispense Failed
       if (EventAlarm){
         EventAlarm = 0;
-        continueDispense = dispenseFailed();
+        continueDispense = 0;
+        dispensingFailed = 1; // previous pill still there, fail for this
+        //continueDispense = dispenseFailed();
+        break; // break while loop
       }
 
       //If Button Pressed
@@ -168,58 +186,92 @@ void state_machine_run(void){
       //NOTE: No event plug in here, because that will be automatically handled upon state change.
 
       //If motor fault, dispense failed
-      if (motorIsFault())
-        continueDispense = dispenseFailed();
-
-      //If Jam Detected
-      uint32_t motorCurrentAdc = getADC(motorAFLTADC);
-      if( motorCurrentAdc > 120){//50 value needs to be tested
-        jamCounter++;
-        if (jamCounter>=4){//Dispense Failed
-          continueDispense = dispenseFailed();
-        }
-        else {
-          motorDirection ^= 1;//Switch to Backward Spin
-          spinDispenseMotor(motorDirection);
-          setAlarm(5);
-        }
+      if (motorIsFault()){
+        continueDispense = 0;
+        dispensingFailed = 1; // previous pill still there, fail for this
+        //continueDispense = dispenseFailed();
+        break; // break while loop
       }
 
-      //Dispensing Logic
-      if (EventIRSample){
-        EventIRSample = 0;
-        if (sample == SAMPLE_BG){
-          BG_ADC_Value = getADC(irReceiverADC);
-          sample = SAMPLE_IR;
-          HAL_GPIO_WritePin(IRLED,SET);
-        }else if (sample == SAMPLE_IR){
-          IR_ADC_Value = getADC(irReceiverADC);
-          sample = SAMPLE_BG;
-          HAL_GPIO_WritePin(IRLED,RESET);
-          if (IR_ADC_Value-BG_ADC_Value > 100){//Perhaps make it offset + threshold value, where offset = a fixed value/device that = light-bg with nothing there
-            //Stop TIMER, stop INTERRUPT, stop DISPENSE, set ALARM, change STATE
-            stopIRSamplingTimer();
-            continueDispense = 0;
-            prescriptionData.pillCount--;
-            _db.item[_db.index].dispenseStatus = Dispense_SUCCESS;
-            stopDispenseMotor();
-            HAL_GPIO_WritePin(irReceiverPower,RESET);//Turn off power for pill drop ADC reader
-            if (prescriptionData.pillCount <= 0){
-              state = DEAD;
-              sleepLevel = SleepLevel_Wake; //Skip sleep cycle once to start DEAD
+      //If Jam Detected
+      if(++motorAvgCnt < 100) // number of average samples
+        motorADCSum += getADC(motorAFLTADC);
+      else{
+        motorADCSum /= motorAvgCnt;
+
+        // motoeDelayCnt to avoid initial start current
+        if((++motorDelayCnt > 100)){
+          if((motorADCSum > 10)) {
+            jamCounter++;
+            if (jamCounter>=4){//Dispense Failed
+              continueDispense = 0;
+              dispensingFailed = 1; // previous pill still there, fail for this
+              //continueDispense = dispenseFailed();
+              break;
             }
-            else if (prescriptionData.operatingMode == Opmode_ASNEEDED){
-              state = ABLE_TO_DISPENSE;
-              setAlarm(2);
-            }else{
-              state = IDLE;
-              setAlarm(prescriptionData.lockoutPeriod);
+            else {
+              motorDirection ^= 1;//Switch to Backward Spin
+              spinDispenseMotor(motorDirection);
+              motorDelayCnt = 0;
+              setAlarm(5);
             }
           }
         }
+
+        motorAvgCnt = 0;
+        motorADCSum = 0;
+      }
+
+      //Dispensing Logic
+      if (sample == SAMPLE_BG){
+        BG_ADC_Value = getADC(irReceiverADC);
+        sample = SAMPLE_IR;
+        HAL_GPIO_WritePin(IRLED,SET);
+      }else if (sample == SAMPLE_IR){
+        IR_ADC_Value = getADC(irReceiverADC);
+        sample = SAMPLE_BG;
+        HAL_GPIO_WritePin(IRLED,RESET);
+      } // if sample
+
+      if (++IR_samlping_delay_cnt > 10){
+        IR_samlping_delay_cnt = 0;
+        // Perhaps make it offset + threshold value,
+        // where offset = a fixed value/device that = light-bg with nothing there
+        if((sample == SAMPLE_BG) && (IR_ADC_Value-BG_ADC_Value > IR_BG_Threshold)){
+          continueDispense = 0;
+          dispensingFailed = 0; // success
+          break;
+        }
+      }// if IR_samlping_delay_cnt
+    } // while continueDispensing
+
+    //Stop TIMER, stop DISPENSE, set ALARM, change STATE
+    stopDispenseMotor();
+    HAL_GPIO_WritePin(irReceiverPower,RESET);//Turn off power for pill drop ADC reader
+    HAL_GPIO_WritePin(IRLED,RESET); // turn off IR
+
+    // update db
+    if(dispensingFailed){
+      state = ABLE_TO_DISPENSE;
+      _db.item[_db.index].dispenseStatus = Dispense_FAIL;
+      setAlarm(2);
+    }
+    else {
+      prescriptionData.pillCount--;
+      _db.item[_db.index].dispenseStatus = Dispense_SUCCESS;
+      
+      if (prescriptionData.pillCount <= 0){
+        state = DEAD;
+        sleepLevel = SleepLevel_Wake; //Skip sleep cycle once to start DEAD
+      }
+      else if (prescriptionData.operatingMode == Opmode_ASNEEDED){
+        state = ABLE_TO_DISPENSE;
+        setAlarm(2);
+      }else{
+        state = IDLE;
+        setAlarm(prescriptionData.lockoutPeriod);
       }
     }
-
     break;
   case DOWNLOADING://For authenticating dock and then when the device is downloading code
     break;

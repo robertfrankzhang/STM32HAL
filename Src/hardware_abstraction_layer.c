@@ -203,4 +203,11 @@ uint8_t motorIsFault() {
   return ((HAL_GPIO_ReadPin(motorFault) == 0 && sMotorInUse));
 }
 
+uint8_t dispenseMotorCurrentAverage(uint8_t len){
+  uint16_t sum;
+  for (int i = 0; i<len;i++)
+    sum += dispenseMotorCurrent();
+  return (uint8_t)(sum/len);
+}
+
 

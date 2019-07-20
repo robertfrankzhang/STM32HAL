@@ -26,7 +26,7 @@ void disableClocks();
 #define MOTOR_PWM_PRESCALE 48
 #define MOTOR_PWM_PERIOD   20
 
-#define MOTOR_PWM_PULSE_UP 10
+#define MOTOR_PWM_PULSE_UP 5
 #define MOTOR_PWM_PULSE_DN (MOTOR_PWM_PERIOD-MOTOR_PWM_PULSE_UP)
 #endif
 
@@ -37,11 +37,13 @@ void stopLockMotor(void);
 
 #define dispenseMotorCurrent() getADC(motorBFLTADC)
 #define lockMotorCurrent()     getADC(motorAFLTADC)
+uint8_t dispenseMotorCurrentAverage(uint8_t len);
 
 uint8_t motorIsFault();
+#define batteryIsCharging() (HAL_GPIO_ReadPin(chargeIndicatorInput) == 0)
+#define batteryLevel() (getADC(batteryVoltageADC)*330/(4096/2))
 
 #define setPwmPulse(htim_pwm,channel,pulse) __HAL_TIM_SET_COMPARE(htim_pwm,channel,pulse)
-
 void startIRSamplingTimer();
 void stopIRSamplingTimer();
 

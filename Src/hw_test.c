@@ -12,13 +12,15 @@ void hw_test_motor_overload();
 void hw_test_ir_read();
 void hw_test_battery_read();
 void hw_test_tim1();
+void hw_test_charger();
 
 // for test only
-uint32_t test_val[8];
+uint16_t test_val[100];
+
 
 void hw_test(){
   // only select one to test
-  int test_case = 4;
+  int test_case = 1;
 
   switch(test_case){
   case 0:
@@ -35,6 +37,9 @@ void hw_test(){
     break;
   case 4:
     hw_test_tim1();
+    break;
+  case 5:
+    hw_test_charger();
     break;
   }
 }
@@ -61,16 +66,16 @@ void hw_test_motor_on_off(){
 
 void hw_test_motor_overload(){
   // hold motor spinning to check valtage
-  int8_t direction = 0;
+  uint32_t i;
+  spinDispenseMotor(0);
   while(1){
-    spinDispenseMotor(direction); // forward
-    for(int i=0; i<8; ++i){
-      HAL_Delay(100);
-      if(dispenseMotorCurrent()>2 || motorIsFault()){
-    	  direction ^= 1;
-    	  break;
-      }
+    for(i=0; i<99;++i){
+      //test_val[i++] = getADC(getADC(batteryVoltageADC));
+      test_val[i] = dispenseMotorCurrentAverage(128);
     }
+    test_val[i] = dispenseMotorCurrentAverage(128);
+    //stopDispenseMotor();
+
   }
 }
 
@@ -79,10 +84,10 @@ void hw_test_ir_read(){
     HAL_GPIO_WritePin(irReceiverPower,SET);
     for(int i=0; i<4; ++i){
       HAL_GPIO_WritePin(IRLED,SET);
-      HAL_Delay(10);
+      HAL_Delay(1);
       test_val[2*i] = getADC(irReceiverADC);
       HAL_GPIO_WritePin(IRLED,RESET);
-      HAL_Delay(10);
+      HAL_Delay(1);
       test_val[2*i+1] = getADC(irReceiverADC);
     }
     HAL_GPIO_WritePin(irReceiverPower,RESET);
@@ -112,6 +117,17 @@ void hw_test_tim1(){
       HAL_Delay(10);
     }
     HAL_Delay(10);
+  }
+}
+
+void hw_test_charger(){
+  while(1){
+    if(batteryIsCharging())
+      HAL_GPIO_WritePin(chargeLED,SET);
+    else
+      HAL_GPIO_WritePin(chargeLED,RESET);
+    test_val[0] = batteryLevel();
+    HAL_Delay(100);
   }
 }
 
