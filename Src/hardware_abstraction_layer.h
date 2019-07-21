@@ -47,4 +47,8 @@ uint8_t motorIsFault();
 void startIRSamplingTimer();
 void stopIRSamplingTimer();
 
+#define usbHostConnect() HAL_GPIO_WritePin(usbEnum,GPIO_PIN_SET)
+#define usbHostDisconnect() HAL_GPIO_WritePin(usbEnum,GPIO_PIN_RESET)
+#define usbIsPluggedIn() (HAL_GPIO_ReadPin(isPluggedIn) != 0)
+
 #endif /* HARDWARE_ABSTRACTION_LAYER_H_ */

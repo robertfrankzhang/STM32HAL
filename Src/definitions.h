@@ -14,6 +14,9 @@
 // define only for test, see file hw_test.c
 //#define HW_TEST
 
+// debug using serial port
+#define SERIAL_DEBUG
+
 /*
 #define button GPIOA,GPIO_PIN_9
 #define motor GPIOA,GPIO_PIN_10
@@ -44,6 +47,7 @@
 #define userSwitch GPIOB,GPIO_PIN_13
 #define userSwitchPin GPIO_PIN_13
 #define userSwitchPort GPIOB
+#define usbEnum GPIOA,GPIO_PIN_15
 
 #define lockMotorA1 GPIOA,GPIO_PIN_3 //Should be PWM
 #define lockMotorA2 GPIOA,GPIO_PIN_4

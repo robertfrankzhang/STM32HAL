@@ -59,6 +59,7 @@
 #include "stm32f1xx.h"
 #include "hardware_abstraction_layer.h"
 #include "hw_test.h"
+#include "serial.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -159,7 +160,11 @@ int main(void)
 #ifdef HW_TEST
   hw_test();
 #endif
-  
+
+#ifdef SERIAL_DEBUG
+  usbHostConnect();
+#endif
+
   setAlarm(2);
   while (1){
   state_machine_run();

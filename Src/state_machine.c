@@ -48,6 +48,9 @@ void startDownloadProcess(enum CurrentState currentState){//currentState is stat
 void state_machine_run(void){
   switch(state){
   case DEAD://For when battery is too low
+#ifdef SERIAL_DEBUG
+    serial_printf("to DEAD\n\r");
+#endif
     sleepLevel = SleepLevel_DeepSleep; //Skip sleep cycle once to start DOWNLOADING
           
     //Turn off Dispense LED
@@ -59,8 +62,9 @@ void state_machine_run(void){
       hasTimeoutEnded = 1;
     }
 
+#ifndef SERIAL_DEBUG
     //Handle if plugged in while in DEAD state. Sets prevState to be one of 2 other states if there are still pills left
-    if (EventPluggedIn){
+    if(usbIsPluggedIn()){
       EventPluggedIn = 0;
       if (prescriptionData.pillCount > 0){
         if (hasTimeoutEnded){
@@ -72,8 +76,12 @@ void state_machine_run(void){
         startDownloadProcess(state);
       }
     }
+#endif
     break;
   case IDLE://For when not able to dispense yet
+#ifdef SERIAL_DEBUG
+    serial_printf("to IDLE\n\r");
+#endif
     sleepLevel = SleepLevel_DeepSleep;
     if (EventAlarm){
       EventAlarm = 0;
@@ -87,10 +95,12 @@ void state_machine_run(void){
       DB_add(Event_NOTALLOWED);
     }
 
-    if (EventPluggedIn){
+#ifndef SERIAL_DEBUG
+    if(usbIsPluggedIn()){
       EventPluggedIn = 0;
       startDownloadProcess(state);
     }
+#endif
 
     //If battery level is too low
     if (getADC(batteryVoltageADC)<50){//50 needs to be tested & adjusted
@@ -99,6 +109,9 @@ void state_machine_run(void){
     }
     break;
   case ABLE_TO_DISPENSE://For when able to dispense, but haven't pressed
+#ifdef SERIAL_DEBUG
+    serial_printf("to ABLE_TO_DISPENSE\n\r");
+#endif
     sleepLevel = SleepLevel_DeepSleep;
     hasTimeoutEnded = 0;
 
@@ -119,11 +132,13 @@ void state_machine_run(void){
       sleepLevel = SleepLevel_Wake;
     }
 
+#ifndef SERIAL_DEBUG
     //If Plugged In
-    if (EventPluggedIn){
+    if(usbIsPluggedIn()){
       EventPluggedIn = 0;
       startDownloadProcess(state);
     }
+#endif
 
     //If battery level is too low
     if (getADC(batteryVoltageADC)<50){//50 needs to be tested & adjusted
@@ -132,6 +147,9 @@ void state_machine_run(void){
     }
     break;
   case DISPENSING://For when the device is dispensing
+#ifdef SERIAL_DEBUG
+    serial_printf("to DISPENSING\n\r");
+#endif
     sleepLevel = SleepLevel_DeepSleep;
 
     uint8_t continueDispense = 1;
@@ -295,7 +313,6 @@ void EXTI9_5_IRQHandler(void){//WHEN PINS CHANGE, THESE NUMBERS MUST CHANGE. JUS
   uint32_t pending = EXTI->PR;
   if (pending & (1<<8)){
     EventPluggedIn = 1;
-    state = DOWNLOADING;
     __HAL_GPIO_EXTI_CLEAR_IT(isPluggedInPin);
   }
 
@@ -356,6 +373,11 @@ void goSleep(enum SleepLevel level){
   switch(level){
   case SleepLevel_Wake:
     break;
+  case SleepLevel_DeepSleep:
+#ifndef SERIAL_DEBUG
+    deepSleep();
+    break;
+#endif
   case SleepLevel_WaitEvent:
     while(!EventAlarm && !hasTimeoutEnded && !EventPush &&
           !EventDock && !EventPluggedIn && !EventIRSample )
@@ -363,9 +385,6 @@ void goSleep(enum SleepLevel level){
     break;
   case SleepLevel_Delay:
     HAL_Delay(500);
-    break;
-  case SleepLevel_DeepSleep:
-    deepSleep();
     break;
   }
 }

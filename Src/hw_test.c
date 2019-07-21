@@ -5,6 +5,7 @@
 #include "hw_test.h"
 #include "hardware_abstraction_layer.h"
 extern uint8_t EventIRSample;
+#include "serial.h"
 
 // forward declaration
 void hw_test_motor_on_off();
@@ -13,6 +14,7 @@ void hw_test_ir_read();
 void hw_test_battery_read();
 void hw_test_tim1();
 void hw_test_charger();
+void hw_test_usb_serial();
 
 // for test only
 uint16_t test_val[100];
@@ -20,7 +22,7 @@ uint16_t test_val[100];
 
 void hw_test(){
   // only select one to test
-  int test_case = 1;
+  int test_case = 6;
 
   switch(test_case){
   case 0:
@@ -40,6 +42,9 @@ void hw_test(){
     break;
   case 5:
     hw_test_charger();
+    break;
+  case 6:
+    hw_test_usb_serial();
     break;
   }
 }
@@ -128,6 +133,27 @@ void hw_test_charger(){
       HAL_GPIO_WritePin(chargeLED,RESET);
     test_val[0] = batteryLevel();
     HAL_Delay(100);
+  }
+}
+
+void hw_test_usb_serial(){
+  usbHostConnect();
+  int i=0;
+  uint8_t rxBuf[64];
+  uint16_t rxLen = 0;
+  while(1){
+	serial_printf("hello world %d\n\r",++i);
+    rxLen = getSerialData(rxBuf,64);
+
+    if( rxLen > 0) {
+      rxBuf[rxLen] = 0;
+      serial_printf("got %d %s\n\r",rxLen,rxBuf);
+    }
+
+    HAL_Delay(1000);
+    HAL_GPIO_WritePin(chargeLED,SET);
+    HAL_Delay(1000);
+    HAL_GPIO_WritePin(chargeLED,RESET);
   }
 }
 
