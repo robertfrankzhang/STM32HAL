@@ -167,8 +167,8 @@ int main(void)
 
   setAlarm(2);
   while (1){
-  state_machine_run();
-  goSleep(sleepLevel);
+	  state_machine_run();
+	  goSleep(sleepLevel);
 
     /* USER CODE END WHILE */
 

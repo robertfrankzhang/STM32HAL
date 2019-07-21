@@ -15,7 +15,7 @@
 //#define HW_TEST
 
 // debug using serial port
-#define SERIAL_DEBUG
+//#define SERIAL_DEBUG
 
 /*
 #define button GPIOA,GPIO_PIN_9
