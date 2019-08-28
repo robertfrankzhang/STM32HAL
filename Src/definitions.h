@@ -35,7 +35,7 @@
 
 #define isPluggedIn GPIOA,GPIO_PIN_8//Hand Soldered Wire to PIN
 #define isPluggedInPin GPIO_PIN_8
-#define motorSleep GPIOB,GPIO_PIN_1
+#define motorSleep GPIOB,GPIO_PIN_14
 #define irReceiverPower GPIOB,GPIO_PIN_4
 #define lockButton GPIOB,GPIO_PIN_6
 #define lockButtonPin GPIO_PIN_6

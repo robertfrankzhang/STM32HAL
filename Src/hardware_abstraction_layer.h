@@ -27,7 +27,9 @@ void disableClocks();
 #define MOTOR_PWM_PERIOD   20
 
 #define MOTOR_PWM_PULSE_UP 5
-#define MOTOR_PWM_PULSE_DN (MOTOR_PWM_PERIOD-MOTOR_PWM_PULSE_UP)
+#define MOTOR_PWM_PULSE_DN 15
+
+//#define MOTOR_PWM_PULSE_DN (MOTOR_PWM_PERIOD-MOTOR_PWM_PULSE_UP)
 #endif
 
 void spinDispenseMotor(int8_t isForward);

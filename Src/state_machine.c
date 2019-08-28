@@ -212,6 +212,7 @@ void state_machine_run(void){
 			}
 
 			//If Jam Detected
+			/*
 			if(++motorAvgCnt < 100) // number of average samples
 				motorADCSum += getADC(motorAFLTADC);
 			else{
@@ -235,8 +236,9 @@ void state_machine_run(void){
 				}
 				motorAvgCnt = 0;
 				motorADCSum = 0;
-			}
 
+			}
+			 */
 			//Dispensing Logic
 			if (sample == SAMPLE_BG){
 				BG_ADC_Value = getADC(irReceiverADC);
@@ -287,6 +289,7 @@ void state_machine_run(void){
 		}
 		break;
 	case DOWNLOADING://For authenticating dock and then when the device is downloading code
+
 		break;
 	case DOCKED://For when the device is at Dock
 		break;
