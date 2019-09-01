@@ -12,7 +12,7 @@
 #define USE_MOTOR_PWM
 
 // define only for test, see file hw_test.c
-//#define HW_TEST
+#define HW_TEST
 
 // debug using serial port
 //#define SERIAL_DEBUG
