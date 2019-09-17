@@ -34,11 +34,8 @@ void disableClocks();
 
 void spinDispenseMotor(int8_t isForward);
 void stopDispenseMotor(void);
-void spinLockMotor(int8_t isForward);
-void stopLockMotor(void);
 
 #define dispenseMotorCurrent() getADC(motorBFLTADC)
-#define lockMotorCurrent()     getADC(motorAFLTADC)
 uint8_t dispenseMotorCurrentAverage(uint8_t len);
 
 uint8_t motorIsFault();

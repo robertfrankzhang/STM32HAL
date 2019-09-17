@@ -160,7 +160,7 @@ void state_machine_run(void){
 		uint8_t  motorAvgCnt=0;
 		uint32_t motorDelayCnt=0;
     
-		uint16_t IR_BG_Threshold = 480;
+		uint16_t IR_BG_Threshold = 1900;
 		uint8_t dispensingFailed = 0;
 
 		uint16_t IR_samlping_delay_cnt=0;
@@ -181,7 +181,7 @@ void state_machine_run(void){
 			spinDispenseMotor(motorDirection);
 			motorDelayCnt = 0;
 			continueDispense = 1;
-			setAlarm(5);
+			setAlarm(10);
 		}
 
 		HAL_GPIO_WritePin(irReceiverPower,SET);//Turn on power for pill drop ADC reader
@@ -204,22 +204,22 @@ void state_machine_run(void){
 			//NOTE: No event plug in here, because that will be automatically handled upon state change.
 
 			//If motor fault, dispense failed
-			if (motorIsFault()){
-				continueDispense = 0;
-				dispensingFailed = 1; // previous pill still there, fail for this
-				//continueDispense = dispenseFailed();
-				break; // break while loop
-			}
+//			if (motorIsFault()){
+//				continueDispense = 0;
+//				dispensingFailed = 1; // previous pill still there, fail for this
+//				//continueDispense = dispenseFailed();
+//				break; // break while loop
+//			}
 
 			//If Jam Detected
-			/*
+
 			if(++motorAvgCnt < 100) // number of average samples
-				motorADCSum += getADC(motorAFLTADC);
+				motorADCSum += getADC(motorBFLTADC);
 			else{
 				motorADCSum /= motorAvgCnt;
 				// motoeDelayCnt to avoid initial start current
 				if((++motorDelayCnt > 100)){
-					if((motorADCSum > 10)) {
+					if((motorADCSum > 100)) {
 						jamCounter++;
 						if (jamCounter>=4){//Dispense Failed
 							continueDispense = 0;
@@ -230,7 +230,7 @@ void state_machine_run(void){
 							motorDirection ^= 1;//Switch to Backward Spin
 							spinDispenseMotor(motorDirection);
 							motorDelayCnt = 0;
-							setAlarm(5);
+							setAlarm(10);
 						}
 					}
 				}
@@ -238,9 +238,11 @@ void state_machine_run(void){
 				motorADCSum = 0;
 
 			}
-			 */
+
 			//Dispensing Logic
 			if (sample == SAMPLE_BG){
+				IR_ADC_Value = 0;
+				BG_ADC_Value = 0;
 				BG_ADC_Value = getADC(irReceiverADC);
 				sample = SAMPLE_IR;
 				HAL_GPIO_WritePin(IRLED,SET);
@@ -250,7 +252,7 @@ void state_machine_run(void){
 				HAL_GPIO_WritePin(IRLED,RESET);
 			} // if sample
 
-			if (++IR_samlping_delay_cnt > 10){
+			//if (++IR_samlping_delay_cnt > 10){
 				IR_samlping_delay_cnt = 0;
 				// Perhaps make it offset + threshold value,
 				// where offset = a fixed value/device that = light-bg with nothing there
@@ -259,7 +261,7 @@ void state_machine_run(void){
 					dispensingFailed = 0; // success
 					break;
 				}
-			}// if IR_samlping_delay_cnt
+			//}// if IR_samlping_delay_cnt
 		} // while continueDispensing
 
 		//Stop TIMER, stop DISPENSE, set ALARM, change STATE
@@ -281,7 +283,7 @@ void state_machine_run(void){
 				sleepLevel = SleepLevel_Wake; //Skip sleep cycle once to start DEAD
 			}else if (prescriptionData.operatingMode == Opmode_ASNEEDED){
 				state = ABLE_TO_DISPENSE;
-				setAlarm(2);
+				setAlarm(10);
 			}else{
 				state = IDLE;
 				setAlarm(prescriptionData.lockoutPeriod);
@@ -336,14 +338,13 @@ void deepSleep(){
 
   //Set all pins to analog, no pull
   setPinsOfPortToLowPower(GPIOA,0,0,0);
-  setPinsOfPortToLowPower(GPIOB,userSwitchPin,lockButtonPin,0);
+  setPinsOfPortToLowPower(GPIOB,userSwitchPin,0,0);
   setPinsOfPortToLowPower(GPIOC,0,0,0);
   setPinsOfPortToLowPower(GPIOD,0,0,0);
   setPinsOfPortToLowPower(GPIOE,0,0,0);
 
   //Pull down button pins
   initPin(userSwitchPort,GPIO_MODE_INPUT,GPIO_SPEED_FREQ_MEDIUM,userSwitchPin,GPIO_PULLDOWN);
-  initPin(lockButtonPort,GPIO_MODE_OUTPUT_PP,GPIO_SPEED_FREQ_MEDIUM,lockButtonPin,GPIO_PULLDOWN);
 
   //Switch off all ADCs
   HAL_ADC_DeInit(&hadc1);

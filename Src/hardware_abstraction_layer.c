@@ -90,10 +90,10 @@ void spinDispenseMotor(int8_t isForward){
   }
   sMotorInUse |= 1; // set inUse bit
   
-  if(motorIsFault()){
-    stopDispenseMotor();
-    HAL_Delay(20);
-  }
+//  if(motorIsFault()){
+//    stopDispenseMotor();
+//    HAL_Delay(20);
+//  }
 
 #ifdef USE_MOTOR_PWM
   if (isForward){
@@ -131,60 +131,6 @@ void stopDispenseMotor(void){
   HAL_GPIO_WritePin(dispenseMotorB1,RESET);
 #endif
   HAL_GPIO_WritePin(dispenseMotorB2,RESET);
-
-  if(sMotorInUse == 0)
-    HAL_GPIO_WritePin(motorSleep,RESET);
-}
-
-void spinLockMotor(int8_t isForward){
-  if(sMotorInUse == 0){
-    HAL_GPIO_WritePin(motorSleep,SET);
-    HAL_Delay(2);
-  }
-  sMotorInUse |= 2; // set inUse bit
-
-  if(motorIsFault()){
-    stopLockMotor();
-    HAL_Delay(20);
-  }
-  
-#ifdef USE_MOTOR_PWM
-  if (isForward){
-    HAL_GPIO_WritePin(lockMotorA2,SET);
-    setPwmPulse(&htim2,TIM_CHANNEL_4,MOTOR_PWM_PULSE_DN);
-  }
-  else{
-    HAL_GPIO_WritePin(lockMotorA2,RESET);
-    setPwmPulse(&htim2,TIM_CHANNEL_4,MOTOR_PWM_PULSE_UP);
-  }
-
-  // start pwm (A1 - PA3:T2C4)
-  HAL_TIM_Base_Start(&htim2);
-  HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_4);
-
-#else
-  if (isForward){//Forward
-    HAL_GPIO_WritePin(lockMotorA2,RESET);
-    HAL_GPIO_WritePin(lockMotorA1,SET);
-  }else{
-    HAL_GPIO_WritePin(lockMotorA2,SET);
-    HAL_GPIO_WritePin(lockMotorA1,RESET);
-  }
-#endif
-
-  HAL_Delay(200); // pass peak current
-}
-
-void stopLockMotor(void){
-  sMotorInUse &= ~2; // reset inUse bit
-
-#ifdef USE_MOTOR_PWM
-  HAL_TIM_Base_Stop(&htim2);
-  HAL_TIM_PWM_Stop(&htim2,TIM_CHANNEL_4);
-#else
-  HAL_GPIO_WritePin(lockMotorA1,RESET);
-#endif
-  HAL_GPIO_WritePin(lockMotorA2,RESET);
 
   if(sMotorInUse == 0)
     HAL_GPIO_WritePin(motorSleep,RESET);

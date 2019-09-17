@@ -22,7 +22,7 @@ uint16_t test_val[100];
 
 void hw_test(){
   // only select one to test
-  int test_case = 6;
+  int test_case = 0;
 
   switch(test_case){
   case 0:
@@ -58,13 +58,6 @@ void hw_test_motor_on_off(){
     spinDispenseMotor(0); // forward
     HAL_Delay(1000);
     stopDispenseMotor(); // stop
-    HAL_Delay(1000);
-    // spin lock Motor
-    spinLockMotor(1);
-    HAL_Delay(1000);
-    spinLockMotor(0);
-    HAL_Delay(1000);
-    stopLockMotor();
     HAL_Delay(1000);
   }
 }
@@ -126,14 +119,14 @@ void hw_test_tim1(){
 }
 
 void hw_test_charger(){
-  while(1){
-    if(batteryIsCharging())
-      HAL_GPIO_WritePin(chargeLED,SET);
-    else
-      HAL_GPIO_WritePin(chargeLED,RESET);
-    test_val[0] = batteryLevel();
-    HAL_Delay(100);
-  }
+//  while(1){
+//    if(batteryIsCharging())
+//      HAL_GPIO_WritePin(chargeLED,SET);
+//    else
+//      HAL_GPIO_WritePin(chargeLED,RESET);
+//    test_val[0] = batteryLevel();
+//    HAL_Delay(100);
+//  }
 }
 
 void hw_test_usb_serial(){
@@ -150,10 +143,10 @@ void hw_test_usb_serial(){
       serial_printf("got %d %s\n\r",rxLen,rxBuf);
     }
 
-    HAL_Delay(1000);
-    HAL_GPIO_WritePin(chargeLED,SET);
-    HAL_Delay(1000);
-    HAL_GPIO_WritePin(chargeLED,RESET);
+//    HAL_Delay(1000);
+//    HAL_GPIO_WritePin(chargeLED,SET);
+//    HAL_Delay(1000);
+//    HAL_GPIO_WritePin(chargeLED,RESET);
   }
 }
 
