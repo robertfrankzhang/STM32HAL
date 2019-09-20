@@ -22,7 +22,7 @@ uint16_t test_val[100];
 
 void hw_test(){
   // only select one to test
-  int test_case = 0;
+  int test_case = 6;
 
   switch(test_case){
   case 0:

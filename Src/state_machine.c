@@ -156,36 +156,51 @@ void state_machine_run(void){
     
 		uint8_t  jamCounter = 0;
 		uint8_t  motorDirection = 1;//1 is forward, 0 is backwards
-		uint32_t motorADCSum;
+		uint32_t motorADCSum=0;
 		uint8_t  motorAvgCnt=0;
 		uint32_t motorDelayCnt=0;
     
-		uint16_t IR_BG_Threshold = 1900;
+		uint16_t IR_BG_Threshold = 200;
+		uint16_t IR_BG_InitialThreshold = 2000;//The cap must be off when dispense starts. If cap is on, reading will be above this threshold.
+		int32_t twoPointMovingAverage = 0;
+		int32_t bigPointMovingAverage = 0;
+		int32_t oldBigPointMovingAverage = 0;
+		int32_t movingAverageCounter = 0;
+
 		uint8_t dispensingFailed = 0;
 
-		uint16_t IR_samlping_delay_cnt=0;
-    
+		uint8_t dispenseTimeout = 100;
+
 		// check if pill is out already
 		HAL_GPIO_WritePin(irReceiverPower,SET);//Turn on power for pill drop ADC reader
-		HAL_Delay(1);
-		IR_ADC_Value = getADC(irReceiverADC);
-		HAL_GPIO_WritePin(irReceiverPower,RESET);//Turn off power for pill drop ADC reader
-		HAL_Delay(1);
-		BG_ADC_Value = getADC(irReceiverADC);
-		if( IR_ADC_Value - BG_ADC_Value > IR_BG_Threshold){
+
+		//Take 10 point avg of initial reading
+		int32_t average = 0;
+		for (int i = 0; i<10; i++){
+			HAL_GPIO_WritePin(IRLED,SET);
+			HAL_Delay(1);
+			IR_ADC_Value = getADC(irReceiverADC);
+			HAL_GPIO_WritePin(IRLED,RESET);//Turn off power for pill drop ADC reader
+			HAL_Delay(1);
+			BG_ADC_Value = getADC(irReceiverADC);
+			average+=(IR_ADC_Value-BG_ADC_Value);
+		}
+
+		average /= 10;
+		if( average > IR_BG_InitialThreshold){
 			continueDispense = 0;
 			dispensingFailed = 1; // previous pill still there, fail for this
-		}
-		else{
+			HAL_GPIO_WritePin(irReceiverPower,RESET);//Turn off power for pill drop ADC reader
+		}else{
 			//Start motor and motor Alarm
+			bigPointMovingAverage = average;
+			oldBigPointMovingAverage = average;
 			spinDispenseMotor(motorDirection);
 			motorDelayCnt = 0;
 			continueDispense = 1;
-			setAlarm(10);
+			setAlarm(dispenseTimeout);
 		}
 
-		HAL_GPIO_WritePin(irReceiverPower,SET);//Turn on power for pill drop ADC reader
-    
 		// 2 ADC about 28.4khz loop
 		while (continueDispense){
 			//If Dispense Failed
@@ -198,24 +213,23 @@ void state_machine_run(void){
 			}
 
 			//If Button Pressed
-			if (EventPush)
+			if (EventPush){
 				EventPush = 0;//Do Nothing
-
+			}
 			//NOTE: No event plug in here, because that will be automatically handled upon state change.
 
 			//If motor fault, dispense failed
-//			if (motorIsFault()){
-//				continueDispense = 0;
-//				dispensingFailed = 1; // previous pill still there, fail for this
-//				//continueDispense = dispenseFailed();
-//				break; // break while loop
-//			}
+			if (motorIsFault()){
+				continueDispense = 0;
+				dispensingFailed = 1; // previous pill still there, fail for this
+				//continueDispense = dispenseFailed();
+				break; // break while loop
+			}
 
 			//If Jam Detected
-
-			if(++motorAvgCnt < 100) // number of average samples
+			if(++motorAvgCnt < 100){ // number of average samples
 				motorADCSum += getADC(motorBFLTADC);
-			else{
+			}else{
 				motorADCSum /= motorAvgCnt;
 				// motoeDelayCnt to avoid initial start current
 				if((++motorDelayCnt > 100)){
@@ -230,7 +244,7 @@ void state_machine_run(void){
 							motorDirection ^= 1;//Switch to Backward Spin
 							spinDispenseMotor(motorDirection);
 							motorDelayCnt = 0;
-							setAlarm(10);
+							setAlarm(dispenseTimeout);
 						}
 					}
 				}
@@ -239,7 +253,7 @@ void state_machine_run(void){
 
 			}
 
-			//Dispensing Logic
+			//Get one point IR Reading
 			if (sample == SAMPLE_BG){
 				IR_ADC_Value = 0;
 				BG_ADC_Value = 0;
@@ -250,18 +264,25 @@ void state_machine_run(void){
 				IR_ADC_Value = getADC(irReceiverADC);
 				sample = SAMPLE_BG;
 				HAL_GPIO_WritePin(IRLED,RESET);
-			} // if sample
 
-			//if (++IR_samlping_delay_cnt > 10){
-				IR_samlping_delay_cnt = 0;
-				// Perhaps make it offset + threshold value,
-				// where offset = a fixed value/device that = light-bg with nothing there
-				if((sample == SAMPLE_BG) && (IR_ADC_Value-BG_ADC_Value > IR_BG_Threshold)){
+				if(++movingAverageCounter < 10000){
+					bigPointMovingAverage+=IR_ADC_Value-BG_ADC_Value;
+				}else{
+					movingAverageCounter = 0;
+					oldBigPointMovingAverage = bigPointMovingAverage/10000;
+					bigPointMovingAverage = 0;
+				}
+
+				int32_t currentDiff = IR_ADC_Value-BG_ADC_Value;
+
+				if(currentDiff - oldBigPointMovingAverage > IR_BG_Threshold){
 					continueDispense = 0;
 					dispensingFailed = 0; // success
 					break;
 				}
-			//}// if IR_samlping_delay_cnt
+			}
+
+
 		} // while continueDispensing
 
 		//Stop TIMER, stop DISPENSE, set ALARM, change STATE
@@ -291,7 +312,12 @@ void state_machine_run(void){
 		}
 		break;
 	case DOWNLOADING://For authenticating dock and then when the device is downloading code
-
+		while (1){
+			//If Plugged In
+			if(!usbIsPluggedIn()){
+				EventPluggedIn = 0;
+			}
+		}
 		break;
 	case DOCKED://For when the device is at Dock
 		break;
