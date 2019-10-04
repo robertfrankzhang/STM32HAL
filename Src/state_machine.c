@@ -47,37 +47,6 @@ void startDownloadProcess(enum CurrentState currentState){//currentState is stat
 
 void state_machine_run(void){
 	switch(state){
-	case DEAD://For when battery is too low
-		#ifdef SERIAL_DEBUG
-		serial_printf("to DEAD\n\r");
-		#endif
-    	sleepLevel = SleepLevel_DeepSleep; //Skip sleep cycle once to start DOWNLOADING
-          
-    	//Turn off Dispense LED
-    	HAL_GPIO_WritePin(dispenseLED,GPIO_PIN_RESET);
-
-    	//Handle if timeout occurs while in DEAD state. No state change until plugged in
-    	if (EventAlarm){
-    		EventAlarm = 0;
-    		hasTimeoutEnded = 1;
-    	}
-
-		#ifndef SERIAL_DEBUG
-    	//Handle if plugged in while in DEAD state. Sets prevState to be one of 2 other states if there are still pills left
-    	if(usbIsPluggedIn()){
-    		EventPluggedIn = 0;
-    		if (prescriptionData.pillCount > 0){
-    			if (hasTimeoutEnded){
-    				startDownloadProcess(ABLE_TO_DISPENSE);
-    			}else{
-    				startDownloadProcess(IDLE);
-    			}
-    		}else{
-    			startDownloadProcess(state);
-    		}
-    	}
-#		endif
-    	break;
 	case IDLE://For when not able to dispense yet
 		#ifdef SERIAL_DEBUG
 		serial_printf("to IDLE\n\r");
@@ -96,7 +65,7 @@ void state_machine_run(void){
 		}
 
 		#ifndef SERIAL_DEBUG
-		if(usbIsPluggedIn()){
+		if(usbIsPluggedIn()){//This needs to be made into an interrupt, rather than simple GPIO read in
 			EventPluggedIn = 0;
 			startDownloadProcess(state);
 		}
@@ -104,8 +73,7 @@ void state_machine_run(void){
 
 		//If battery level is too low
 		if (getADC(batteryVoltageADC)<50){//50 needs to be tested & adjusted
-			state = DEAD;
-			sleepLevel = SleepLevel_Wake; //Skip sleep cycle once to start DEAD
+			//Save to Flash every once in a while if this is the case
 		}
 		break;
 	case ABLE_TO_DISPENSE://For when able to dispense, but haven't pressed
@@ -114,7 +82,6 @@ void state_machine_run(void){
 		#endif
 		sleepLevel = SleepLevel_DeepSleep;
 		hasTimeoutEnded = 0;
-
 		//Handle if 2 second light pulse alarm just passed
 		if (EventAlarm){//Flash light
 			EventAlarm = 0;
@@ -139,12 +106,6 @@ void state_machine_run(void){
 			startDownloadProcess(state);
 		}
 		#endif
-
-		//If battery level is too low
-		if (getADC(batteryVoltageADC)<50){//50 needs to be tested & adjusted
-			state = DEAD;
-			sleepLevel = SleepLevel_Wake; //Skip sleep cycle once to start DEAD
-		}
 		break;
 	case DISPENSING://For when the device is dispensing
 		#ifdef SERIAL_DEBUG
@@ -160,7 +121,7 @@ void state_machine_run(void){
 		uint8_t  motorAvgCnt=0;
 		uint32_t motorDelayCnt=0;
     
-		uint16_t IR_BG_Threshold = 200;
+		uint16_t IR_BG_Threshold = 125;
 		uint16_t IR_BG_InitialThreshold = 2000;//The cap must be off when dispense starts. If cap is on, reading will be above this threshold.
 		int32_t twoPointMovingAverage = 0;
 		int32_t bigPointMovingAverage = 0;
@@ -198,6 +159,7 @@ void state_machine_run(void){
 			spinDispenseMotor(motorDirection);
 			motorDelayCnt = 0;
 			continueDispense = 1;
+			EventAlarm = 0;
 			setAlarm(dispenseTimeout);
 		}
 
@@ -219,12 +181,12 @@ void state_machine_run(void){
 			//NOTE: No event plug in here, because that will be automatically handled upon state change.
 
 			//If motor fault, dispense failed
-			if (motorIsFault()){
-				continueDispense = 0;
-				dispensingFailed = 1; // previous pill still there, fail for this
-				//continueDispense = dispenseFailed();
-				break; // break while loop
-			}
+//			if (motorIsFault()){
+//				continueDispense = 0;
+//				dispensingFailed = 1; // previous pill still there, fail for this
+//				//continueDispense = dispenseFailed();
+//				break; // break while loop
+//			}
 
 			//If Jam Detected
 			if(++motorAvgCnt < 100){ // number of average samples
@@ -300,11 +262,10 @@ void state_machine_run(void){
 			_db.item[_db.index].dispenseStatus = Dispense_SUCCESS;
       
 			if (prescriptionData.pillCount <= 0){
-				state = DEAD;
-				sleepLevel = SleepLevel_Wake; //Skip sleep cycle once to start DEAD
+				state = IDLE;
 			}else if (prescriptionData.operatingMode == Opmode_ASNEEDED){
 				state = ABLE_TO_DISPENSE;
-				setAlarm(10);
+				setAlarm(2);//Alarm for light flashing
 			}else{
 				state = IDLE;
 				setAlarm(prescriptionData.lockoutPeriod);
@@ -318,12 +279,8 @@ void state_machine_run(void){
 				EventPluggedIn = 0;
 			}
 		}
-		break;
-	case DOCKED://For when the device is at Dock
-		break;
-	case UPLOADING://For accepting new prescription data
-		break;
-	case UNLOCKED://For when unlocked and unplugged
+		state = prevState;
+		sleepLevel = SleepLevel_Wake;
 		break;
 	default:
 		break;

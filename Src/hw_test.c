@@ -134,10 +134,18 @@ void hw_test_usb_serial(){
   int i=0;
   uint8_t rxBuf[64];
   uint16_t rxLen = 0;
+  int counter = 0;
   while(1){
 	serial_printf("hello world %d\n\r",++i);
     rxLen = getSerialData(rxBuf,64);
-
+    counter++;
+    if (counter==10000){
+    	HAL_GPIO_WritePin(dispenseLED,GPIO_PIN_SET);
+    }
+    if (counter == 20000){
+    	HAL_GPIO_WritePin(dispenseLED,GPIO_PIN_RESET);
+    	counter = 0;
+    }
     if( rxLen > 0) {
       rxBuf[rxLen] = 0;
       serial_printf("got %d %s\n\r",rxLen,rxBuf);

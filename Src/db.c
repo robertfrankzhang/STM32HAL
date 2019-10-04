@@ -8,7 +8,7 @@ PrescriptionData_t prescriptionData;
 
 void DB_init(void){
 	DB_clear();
-	prescriptionData.lockoutPeriod = 10;
+	prescriptionData.lockoutPeriod = 3;
 	prescriptionData.totalPillCount = 10;
 	prescriptionData.pillCount = prescriptionData.totalPillCount;
 	prescriptionData.impulseProofHoldTime = 10;
