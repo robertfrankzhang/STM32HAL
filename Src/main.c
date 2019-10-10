@@ -60,6 +60,7 @@
 #include "hardware_abstraction_layer.h"
 #include "hw_test.h"
 #include "serial.h"
+#include "db.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
