@@ -37,9 +37,9 @@ int8_t DB_add(DB_Event_t event){
 	_db.item[_db.index].time = time;
 	_db.item[_db.index].event = event;
 	++_db.index;
-	serial_printf("db %d:%d:%d ev:%d sz=%d\n\r",
-				time.Hours,time.Minutes,time.Seconds,
-				event,_db.index);
+//	serial_printf("db %d:%d:%d ev:%d sz=%d\n\r",
+//				time.Hours,time.Minutes,time.Seconds,
+//				event,_db.index);
 	return 0; // ok
 }
 

@@ -45,6 +45,7 @@ uint8_t motorIsFault();
 #define setPwmPulse(htim_pwm,channel,pulse) __HAL_TIM_SET_COMPARE(htim_pwm,channel,pulse)
 void startIRSamplingTimer();
 void stopIRSamplingTimer();
+void populateDBWithFake();
 
 #define usbHostConnect() HAL_GPIO_WritePin(usbEnum,GPIO_PIN_SET)
 #define usbHostDisconnect() HAL_GPIO_WritePin(usbEnum,GPIO_PIN_RESET)

@@ -163,6 +163,7 @@ int main(void)
 #endif
 
   setAlarm(2);
+  populateDBWithFake();
   while (1){
 	  state_machine_run();
 	  //goSleep(sleepLevel);

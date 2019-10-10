@@ -27,6 +27,18 @@ uint32_t getADC(uint32_t channel){
   return HAL_ADC_GetValue(&hadc1);
 }
 
+void populateDBWithFake(){
+	for (int i = 0; i<DB_ITEM_MAX; i++){
+		if (i%3==0){
+			DB_add(Event_NOTALLOWED);
+		}else if (i%3 ==1){
+			DB_add(Event_ALLOWED);
+		}else{
+			DB_add(Event_FORCED);
+		}
+	}
+}
+
 void setAlarm(int delay){
   RTC_AlarmTypeDef alarm;
   RTC_TimeTypeDef *time = &alarm.AlarmTime;
